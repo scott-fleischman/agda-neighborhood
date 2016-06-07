@@ -38,7 +38,7 @@ _?>_ : ∀ {X} → 𝟚 → Maybe X → Maybe X
 b ?> mx = if b then mx else no
 infixr 4 _?>_
 
-module Plain (P : Set) (_≤?_ : P → P → 𝟚) where
+module Plain (P : Set) (_≤_ : P → P → 𝟚) where
   data STRange : Set where
     ∅ : STRange
     _–_ : P → P → STRange
@@ -52,16 +52,16 @@ module Plain (P : Set) (_≤?_ : P → P → 𝟚) where
   valid leaf = yes ∅
   valid (node l x r) with valid l | valid r
   valid (node l x r) | yes ∅ | yes ∅ = yes (x – x)
-  valid (node l x r) | yes ∅ | yes (rl – rh) = x ≤? rl ?> yes (x – rh)
-  valid (node l x r) | yes (ll – lh) | yes ∅ = lh ≤? x ?> yes (ll – x)
-  valid (node l x r) | yes (ll – lh) | yes (rl – rh) = lh ≤? x ?> x ≤? rl ?> yes (ll – rh)
+  valid (node l x r) | yes ∅ | yes (rl – rh) = x ≤ rl ?> yes (x – rh)
+  valid (node l x r) | yes (ll – lh) | yes ∅ = lh ≤ x ?> yes (ll – x)
+  valid (node l x r) | yes (ll – lh) | yes (rl – rh) = lh ≤ x ?> x ≤ rl ?> yes (ll – rh)
   valid (node l x r) | _ | _ = no
 
   insert : P → Tree → Tree
   insert p leaf = node leaf p leaf
-  insert p (node l x r) = if p ≤? x then node (insert p l) x r else node l x (insert p r)
+  insert p (node l x r) = if p ≤ x then node (insert p l) x r else node l x (insert p r)
 
-module Search (P : Set) (_≤?_ : P → P → 𝟚) where
+module Search (P : Set) (_≤_ : P → P → 𝟚) where
   data STRange : Set where
     ∅ : STRange
     _–_ : P → P → STRange
@@ -69,11 +69,11 @@ module Search (P : Set) (_≤?_ : P → P → 𝟚) where
 
   leftOK : STRange → P → 𝟚
   leftOK ∅ p = true
-  leftOK (low – high) p = high ≤? p
+  leftOK (low – high) p = high ≤ p
 
   rightOK : P → STRange → 𝟚
   rightOK p ∅ = true
-  rightOK p (low – high) = p ≤? low
+  rightOK p (low – high) = p ≤ low
 
   outputRange : STRange → P → STRange → STRange
   outputRange ∅ p ∅ = p – p
@@ -95,12 +95,12 @@ module Search (P : Set) (_≤?_ : P → P → 𝟚) where
   insertRange : STRange → P → STRange
   insertRange ∅ p = p – p
   insertRange (low – high) p =
-    if p ≤? low then p – high
-    else if high ≤? p then low – p
+    if p ≤ low then p – high
+    else if high ≤ p then low – p
     else low – high
 
   insert : ∀ {r} y → BST r → BST (insertRange r y)
   insert y leaf = node leaf y leaf
   insert y (node left p right) =
-    if y ≤? p then {!!} -- node (insert y left) p right
+    if y ≤ p then {!!} -- node (insert y left) p right
     else {!!} -- node left p (insert y right)
