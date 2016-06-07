@@ -12,14 +12,14 @@ So false = 𝟘
 
 record <P_P> (P : Set) : Set where
   constructor !
-  field ⦃ proof ⦄ : P
+  field proof : P
 
 _⇒_ : Set → Set → Set
-P ⇒ T = ⦃ p : P ⦄ → T
+P ⇒ T = P → T
 infixr 3 _⇒_
 
 _∴_ : ∀ {P T} → <P P P> → (P ⇒ T) → T
-! ∴ t = t
+(! proof) ∴ ft = ft proof
 
 ¬ : 𝟚 → 𝟚
 ¬ true = false
@@ -31,19 +31,19 @@ if_then_else_
   → (So b ⇒ X)
   → (So (¬ b) ⇒ X)
   → X
-if true then t else f = t
-if false then t else f = f
+if true then t else f = t <>
+if false then t else f = f <>
 infix 1 if_then_else_
 
 magic : {X : Set} → 𝟘 ⇒ X
-magic ⦃ () ⦄
+magic ()
 
 data Maybe (X : Set) : Set where
   yes : X → Maybe X
   no : Maybe X
 
 _?>_ : ∀ {X} → 𝟚 → Maybe X → Maybe X
-b ?> mx = if b then mx else no
+b ?> mx = if b then (λ _ → mx) else (λ _ → no)
 infixr 4 _?>_
 
 module Plain (P : Set) (_≤?_ : P → P → 𝟚) where
@@ -67,7 +67,7 @@ module Plain (P : Set) (_≤?_ : P → P → 𝟚) where
 
   insert : P → Tree → Tree
   insert p leaf = node leaf p leaf
-  insert p (node l x r) = if p ≤? x then node (insert p l) x r else node l x (insert p r)
+  insert p (node l x r) = if p ≤? x then (λ _ → node (insert p l) x r) else (λ _ → node l x (insert p r))
 
 module Search (P : Set) (_≤?_ : P → P → 𝟚) where
   data STRange : Set where
@@ -103,14 +103,13 @@ module Search (P : Set) (_≤?_ : P → P → 𝟚) where
   insertRange : STRange → P → STRange
   insertRange ∅ p = p – p
   insertRange (low – high) p =
-    if p ≤? low then p – high
-    else if high ≤? p then low – p
-    else low – high
+    if p ≤? low then (λ _ → p – high)
+    else
+      if high ≤? p then (λ _ _ → low – p)
+      else (λ _ _ → low – high)
 
   insert : ∀ {r} y → BST r → BST (insertRange r y)
-  insert y leaf = node leaf y leaf
-  insert y (node left p right) = {!!}
-  {-
-    if y ≤? p then node (insert y left) p right
-    else node left p (insert y right)
-  -}
+  insert y leaf = node leaf y leaf <> <>
+  insert y (node left p right pl pr) =
+    if y ≤? p then (λ x → {!!}) -- (λ _ → node (insert y left) p right)
+    else (λ x → {!!}) -- (λ _ → node left p (insert y right))
