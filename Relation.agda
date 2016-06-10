@@ -12,7 +12,7 @@ data <$_$>D (P : Set) : Set where
   tb   : P ->  <$ P $>D
   bot  :       <$ P $>D
 
-record Σ (S : Set)(T : S -> Set) : Set where
+record Σ (S : Set) (T : S -> Set) : Set where
   constructor _,_
   field
     fst : S
@@ -25,17 +25,6 @@ infixr 5 _×_ _,_
 REL : Set -> Set1
 REL P = P × P -> Set
 
-data Nat : Set where
-  ze : Nat
-  su : Nat -> Nat
-
-Le : REL Nat
-Le (x , y) = x <= y where
-  _<=_ : Nat -> Nat -> Set
-  ze    <= y     =  One
-  su x  <= ze    =  Zero
-  su x  <= su y  =  x <= y
-
 data _+_ (S T : Set) :  Set where
   inl : S -> S + T
   inr : T -> S + T
@@ -46,11 +35,6 @@ OWOTO L (x , y) = <P L (x , y) P> + <P L (y , x) P>
 
 pattern le  = inl !
 pattern ge  = inr !
-
-nowoto : forall x y -> OWOTO Le (x , y)
-nowoto ze      y       = le
-nowoto (su x)  ze      = ge
-nowoto (su x)  (su y)  = nowoto x y
 
 <$_$>F <^_^>P : forall {P} -> REL P -> REL <$ P $>D
 <$ L $>F (_     , top)   = One
@@ -121,11 +105,11 @@ module BinarySearchTreeBest
   pattern leaf          = pleaf !
   pattern node lt p rt  = pnode (lt \\ p \\ rt)
 
-  insert2 :  [ <$ L $>II >> BST >> BST ]
-  insert2 <$ y $>ii leaf = node leaf y leaf
-  insert2 <$ y $>ii (node lt p rt)  with owoto y p
-  ... | le  = node (insert2 <$ y $>ii lt) p rt
-  ... | ge  = node lt p (insert2 <$ y $>ii rt)
+  insert :  [ <$ L $>II >> BST >> BST ]
+  insert <$ y $>ii leaf = node leaf y leaf
+  insert <$ y $>ii (node lt p rt)  with owoto y p
+  ... | le  = node (insert <$ y $>ii lt) p rt
+  ... | ge  = node lt p (insert <$ y $>ii rt)
 
   rotR : [ BST >> BST ]
   rotR (node (node lt m mt) p rt)
@@ -135,3 +119,38 @@ module BinarySearchTreeBest
   data OList (lu : <$ P $>D × <$ P $>D) : Set where
     nil   :  (<^ L ^>P >> OList) lu
     cons  :  (<^ L ^>P ^ OList >> OList) lu 
+
+module BestNat where
+  data Nat : Set where
+    ze : Nat
+    su : Nat -> Nat
+  {-# BUILTIN NATURAL Nat #-}
+
+  Le : REL Nat
+  Le (x , y) = x <= y where
+    _<=_ : Nat -> Nat -> Set
+    ze    <= y     =  One
+    su x  <= ze    =  Zero
+    su x  <= su y  =  x <= y
+
+  nowoto : forall x y -> OWOTO Le (x , y)
+  nowoto ze      y       = le
+  nowoto (su x)  ze      = ge
+  nowoto (su x)  (su y)  = nowoto x y
+
+  open BinarySearchTreeBest Nat Le nowoto
+
+  ex1 : BST (bot , top)
+  ex1 = leaf
+
+  ex2 : BST (tb 9 , tb 9)
+  ex2 = node leaf 9 leaf
+
+  ex3 : BST (bot , top)
+  ex3 = node (node leaf 8 leaf) 9 leaf
+
+  ex4 : BST (bot , top)
+  ex4 = insert <$ 9 $>ii leaf
+
+  ex5 : BST (bot , top)
+  ex5 = insert <$ 9 $>ii (insert <$ 6 $>ii (insert <$ 12 $>ii leaf))
