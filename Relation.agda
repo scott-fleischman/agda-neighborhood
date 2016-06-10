@@ -12,25 +12,25 @@ data <$_$>D (P : Set) : Set where
   tb   : P ->  <$ P $>D
   bot  :       <$ P $>D
 
-record Sg (S : Set)(T : S -> Set) : Set where
-  constructor _/_
+record Σ (S : Set)(T : S -> Set) : Set where
+  constructor _,_
   field
     fst : S
     snd : T fst
-open Sg
-_*_ : Set -> Set -> Set
-S * T = Sg S \ _ -> T
-infixr 5 _*_ _/_
+open Σ
+_×_ : Set -> Set -> Set
+S × T = Σ S \ _ -> T
+infixr 5 _×_ _,_
 
 REL : Set -> Set1
-REL P = P * P -> Set
+REL P = P × P -> Set
 
 data Nat : Set where
   ze : Nat
   su : Nat -> Nat
 
 Le : REL Nat
-Le (x / y) = x <= y where
+Le (x , y) = x <= y where
   _<=_ : Nat -> Nat -> Set
   ze    <= y     =  One
   su x  <= ze    =  Zero
@@ -42,21 +42,21 @@ data _+_ (S T : Set) :  Set where
 infixr 4 _+_
 
 OWOTO : forall {P}(L : REL P) -> REL P
-OWOTO L (x / y) = <P L (x / y) P> + <P L (y / x) P>
+OWOTO L (x , y) = <P L (x , y) P> + <P L (y , x) P>
 
 pattern le  = inl !
 pattern ge  = inr !
 
-nowoto : forall x y -> OWOTO Le (x / y)
+nowoto : forall x y -> OWOTO Le (x , y)
 nowoto ze      y       = le
 nowoto (su x)  ze      = ge
 nowoto (su x)  (su y)  = nowoto x y
 
 <$_$>F <^_^>P : forall {P} -> REL P -> REL <$ P $>D
-<$ L $>F (_     / top)   = One
-<$ L $>F (tb x  / tb y)  = L (x / y)
-<$ L $>F (bot   / _)     = One
-<$ L $>F (_     / _)     = Zero
+<$ L $>F (_     , top)   = One
+<$ L $>F (tb x  , tb y)  = L (x , y)
+<$ L $>F (bot   , _)     = One
+<$ L $>F (_     , _)     = Zero
 <^ L ^>P xy = <P <$ L $>F xy P>
 
 Never Always : {I : Set} -> I -> Set
@@ -66,7 +66,7 @@ Always  i = One
 _-+-_ _-*-_ _>>_ : {I : Set} ->
   (I -> Set) -> (I -> Set) -> I -> Set
 (S -+- T)  i = S i + T i
-(S -*- T)  i = S i * T i
+(S -*- T)  i = S i × T i
 (S >> T)   i = S i -> T i
 infixr 3 _-+-_ ; infixr 4 _-*-_ ; infixr 2 _>>_
 
@@ -77,9 +77,9 @@ mytest : forall {I}{S T : I -> Set} -> [ S >> S -+- T ]
 mytest = inl
 
 _^_ : forall {P} -> REL <$ P $>D -> REL <$ P $>D -> REL <$ P $>D
-_^_ {P} S T (l / u) = Sg P \ p -> S (l / tb p) * T (tb p / u)
+_^_ {P} S T (l , u) = Σ P \ p -> S (l , tb p) × T (tb p , u)
 
-pattern _\\_\\_ s p t = p / s / t
+pattern _\\_\\_ s p t = p , s , t
 infixr 5 _\\_\\_
 
 <$_$>II : forall {P}(L : REL P) -> REL <$ P $>D
@@ -89,13 +89,13 @@ pattern <$_$>ii p = ! \\ p \\ !
 module BinarySearchTreeWorks
   (P : Set)
   (L : REL P)
-  (owoto : forall x y -> OWOTO L (x / y))
+  (owoto : forall x y -> OWOTO L (x , y))
   where
 
-  data BST (lu : <$ P $>D * <$ P $>D) : Set where
+  data BST (lu : <$ P $>D × <$ P $>D) : Set where
     leaf   :  BST lu
     pnode  :  ((<^ L ^>P -*- BST) ^ (<^ L ^>P -*- BST) >> BST) lu
-  pattern node lt p rt = pnode (p / (! / lt) / (! / rt))
+  pattern node lt p rt = pnode (p , (! , lt) , (! , rt))
 
   insert2 :  [ <$ L $>II >> BST >> BST ]
   insert2 <$ y $>ii leaf            = node leaf y leaf
@@ -111,10 +111,10 @@ module BinarySearchTreeWorks
 module BinarySearchTreeBest
   (P : Set)
   (L : REL P)
-  (owoto : forall x y -> OWOTO L (x / y))
+  (owoto : forall x y -> OWOTO L (x , y))
   where
 
-  data BST (lu : <$ P $>D * <$ P $>D) : Set where
+  data BST (lu : <$ P $>D × <$ P $>D) : Set where
     pleaf  :  (<^ L ^>P >> BST) lu
     pnode  :  (BST ^ BST >> BST) lu
 
@@ -132,6 +132,6 @@ module BinarySearchTreeBest
      = node lt m (node mt p rt)
   rotR t = t
 
-  data OList (lu : <$ P $>D * <$ P $>D) : Set where
+  data OList (lu : <$ P $>D × <$ P $>D) : Set where
     nil   :  (<^ L ^>P >> OList) lu
     cons  :  (<^ L ^>P ^ OList >> OList) lu 
