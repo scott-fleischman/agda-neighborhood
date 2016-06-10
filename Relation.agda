@@ -33,9 +33,6 @@ infixr 4 _+_
 OWOTO : forall {P}(L : REL P) -> REL P
 OWOTO L (x , y) = <P L (x , y) P> + <P L (y , x) P>
 
-pattern le  = inl !
-pattern ge  = inr !
-
 <$_$>F <^_^>P : forall {P} -> REL P -> REL <$ P $>D
 <$ L $>F (_     , top)   = One
 <$ L $>F (tb x  , tb y)  = L (x , y)
@@ -57,20 +54,20 @@ infixr 3 _-+-_ ; infixr 4 _-*-_ ; infixr 2 _>>_
 [_] : {I : Set} -> (I -> Set) -> Set
 [ F ] = forall {i} -> F i
 
-mytest : forall {I}{S T : I -> Set} -> [ S >> S -+- T ]
+mytest : {I : Set} {S T : I -> Set} -> [ S >> S -+- T ]
 mytest = inl
 
-_^_ : forall {P} -> REL <$ P $>D -> REL <$ P $>D -> REL <$ P $>D
+_^_ : {P : Set} -> REL <$ P $>D -> REL <$ P $>D -> REL <$ P $>D
 _^_ {P} S T (l , u) = Σ P \ p -> S (l , tb p) × T (tb p , u)
 
 <$_$>II : forall {P}(L : REL P) -> REL <$ P $>D
 <$ L $>II = <^ L ^>P ^ <^ L ^>P
 pattern <$_$>ii p = p , ! , !
 
-module BinarySearchTreeWorks
+module BSTWorks
   (P : Set)
   (L : REL P)
-  (owoto : forall x y -> OWOTO L (x , y))
+  (owoto : (x y : P) -> OWOTO L (x , y))
   where
 
   data BST (lu : <$ P $>D × <$ P $>D) : Set where
@@ -81,18 +78,18 @@ module BinarySearchTreeWorks
   insert2 :  [ <$ L $>II >> BST >> BST ]
   insert2 <$ y $>ii leaf            = node leaf y leaf
   insert2 <$ y $>ii (node lt p rt)  with owoto y p
-  ... | le  = node (insert2 <$ y $>ii lt) p rt
-  ... | ge  = node lt p (insert2 <$ y $>ii rt)
+  ... | inl !  = node (insert2 <$ y $>ii lt) p rt
+  ... | inr !  = node lt p (insert2 <$ y $>ii rt)
 
   rotR : [ BST >> BST ]
   rotR (node (node lt m mt) p rt)
     = {!!} -- node lt m (node mt p rt)
   rotR t = t
 
-module BinarySearchTreeBest
+module BSTBest
   (P : Set)
   (L : REL P)
-  (owoto : forall x y -> OWOTO L (x , y))
+  (owoto : (x y : P) -> OWOTO L (x , y))
   where
 
   data BST (lu : <$ P $>D × <$ P $>D) : Set where
@@ -105,8 +102,8 @@ module BinarySearchTreeBest
   insert :  [ <$ L $>II >> BST >> BST ]
   insert <$ y $>ii leaf = node leaf y leaf
   insert <$ y $>ii (node lt p rt)  with owoto y p
-  ... | le  = node (insert <$ y $>ii lt) p rt
-  ... | ge  = node lt p (insert <$ y $>ii rt)
+  ... | inl !  = node (insert <$ y $>ii lt) p rt
+  ... | inr !  = node lt p (insert <$ y $>ii rt)
 
   rotR : [ BST >> BST ]
   rotR (node (node lt m mt) p rt)
@@ -131,11 +128,11 @@ module BestNat where
     su x  <= su y  =  x <= y
 
   nowoto : forall x y -> OWOTO Le (x , y)
-  nowoto ze      y       = le
-  nowoto (su x)  ze      = ge
+  nowoto ze      y       = inl !
+  nowoto (su x)  ze      = inr !
   nowoto (su x)  (su y)  = nowoto x y
 
-  open BinarySearchTreeBest Nat Le nowoto
+  open BSTBest Nat Le nowoto
 
   ex1 : BST (bot , top)
   ex1 = leaf
