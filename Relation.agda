@@ -63,12 +63,9 @@ mytest = inl
 _^_ : forall {P} -> REL <$ P $>D -> REL <$ P $>D -> REL <$ P $>D
 _^_ {P} S T (l , u) = Σ P \ p -> S (l , tb p) × T (tb p , u)
 
-pattern _\\_\\_ s p t = p , s , t
-infixr 5 _\\_\\_
-
 <$_$>II : forall {P}(L : REL P) -> REL <$ P $>D
 <$ L $>II = <^ L ^>P ^ <^ L ^>P
-pattern <$_$>ii p = ! \\ p \\ !
+pattern <$_$>ii p = p , ! , !
 
 module BinarySearchTreeWorks
   (P : Set)
@@ -103,7 +100,7 @@ module BinarySearchTreeBest
     pnode  :  (BST ^ BST >> BST) lu
 
   pattern leaf          = pleaf !
-  pattern node lt p rt  = pnode (lt \\ p \\ rt)
+  pattern node lt p rt  = pnode (p , lt , rt)
 
   insert :  [ <$ L $>II >> BST >> BST ]
   insert <$ y $>ii leaf = node leaf y leaf
