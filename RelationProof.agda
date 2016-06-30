@@ -61,8 +61,8 @@ module Order
     → BST b
   insert (y , p1 , p2) (leaf lb) = node (y , leaf p1 , leaf p2)
   insert (y , p1 , p2) (node (p , left , right)) with total y p
-  insert (y , p1 , p2) (node (p , left , right)) | inl pp = node (p , insert (y , p1 , pp) left , right)
-  insert (y , p1 , p2) (node (p , left , right)) | inr pp = node (p , left , insert (y , pp , p2) right)
+  … | inl pp = node (p , insert (y , p1 , pp) left , right)
+  … | inr pp = node (p , left , insert (y , pp , p2) right)
 
   rotR : {b : Extend P × Extend P} → BST b → BST b
   rotR (node (p , node (m , lt , mt) , rt))
