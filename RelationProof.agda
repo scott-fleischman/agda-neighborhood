@@ -5,10 +5,6 @@ module RelationProof where
 data 𝟘 : Set where
 open import Agda.Builtin.Unit renaming (⊤ to 𝟙)
 
-record Hide (P : Set) : Set where
-  constructor hide
-  field {{prf}} : P
-
 infixr 5 _×_ _,_
 record Σ (A : Set) (B : A → Set) : Set where
   constructor _,_
@@ -28,7 +24,7 @@ Relation P = P × P -> Set
 Total : {P : Set}
   → (R : Relation P)
   → (Relation P)
-Total R (x , y) = Hide (R (x , y)) + Hide (R (y , x))
+Total R (x , y) = R (x , y) + R (y , x)
 
 data Extend (A : Set) : Set where
   ⊤ : Extend A
@@ -44,18 +40,10 @@ extend R (value x , value y) = R (x , y)
 extend R (⊥ , value y) = 𝟙
 extend R (x , ⊥) = 𝟘
 
-hide-extend : {A : Set}
-  → (R : Relation A)
-  → (Relation (Extend A))
-hide-extend L xy = Hide ((extend L) xy)
-
 _^_ : {P : Set}
   → (S T : Relation (Extend P))
   → (Relation (Extend P))
 _^_ {P} S T (lower , upper) = Σ P (λ p → S (lower , value p) × T (value p , upper))
-
-extend^ : {P : Set} → (L : Relation P) -> (Relation (Extend P))
-extend^ L = hide-extend L ^ hide-extend L
 
 module Order
   (P : Set)
@@ -64,14 +52,20 @@ module Order
   where
 
   data BST (b : Extend P × Extend P) : Set where
-    leaf : (lb : Hide (extend L b)) → BST b
+    leaf : (lb : extend L b) → BST b
     node : (BST ^ BST) b → BST b
 
   insert : {b : Extend P × Extend P}
-    → extend^ L b
+    → (extend L ^ extend L) b
     → BST b
     → BST b
-  insert (y , hide , hide) (leaf lb) = node (y , leaf hide , leaf hide)
-  insert (y , hide , hide) (node (p , left , right)) with total y p
-  insert (y , hide , hide) (node (p , left , right)) | inl hide = node (p , insert (y , hide , hide) left , right)
-  insert (y , hide , hide) (node (p , left , right)) | inr hide = node (p , left , insert (y , hide , hide) right)
+  insert (y , p1 , p2) (leaf lb) = node (y , leaf p1 , leaf p2)
+  insert (y , p1 , p2) (node (p , left , right)) with total y p
+  insert (y , p1 , p2) (node (p , left , right)) | inl pp = node (p , insert (y , p1 , pp) left , right)
+  insert (y , p1 , p2) (node (p , left , right)) | inr pp = node (p , left , insert (y , pp , p2) right)
+
+  rotR : {b : Extend P × Extend P} → BST b → BST b
+  rotR (node (p , node (m , lt , mt) , rt))
+     = node (m , lt , node (p , mt , rt))
+  {-# CATCHALL #-}
+  rotR t = t
