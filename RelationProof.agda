@@ -71,31 +71,44 @@ module Order
   rotR t = t
 
 module Test where
-  open import Agda.Builtin.Nat
+  open import Agda.Builtin.Nat using (Nat; zero; suc)
 
-  _≤_ : Relation Nat
-  zero ≤ y = 𝟙
-  suc x ≤ zero = 𝟘
-  suc x ≤ suc y = x ≤ y
+  data _≤_ : (x y : Nat) → Set where
+    z≤ : (y : Nat) → zero ≤ y
+    s≤s : {x y : Nat} → x ≤ y → suc x ≤ suc y
 
   total≤ : (x y : Nat) → Total _≤_ x y
-  total≤ zero y = inl _
-  total≤ (suc x) zero = inr _
-  total≤ (suc x) (suc y) = total≤ x y
+  total≤ zero y = inl (z≤ y)
+  total≤ (suc x) zero = inr (z≤ (suc x))
+  total≤ (suc x) (suc y) with total≤ x y
+  total≤ (suc x) (suc y) | inl p = inl (s≤s p)
+  total≤ (suc x) (suc y) | inr p = inr (s≤s p)
 
   open Order Nat _≤_ total≤
+
+  is-inl : {A B : Set} → A + B → Set
+  is-inl (inl _) = 𝟙
+  is-inl (inr _) = 𝟘
+
+  _prove≤_ : (x y : Nat) → {p : is-inl (total≤ x y)} → x ≤ y
+  _prove≤_ x y {p} with total≤ x y
+  _prove≤_ x y | inl r = r
+  _prove≤_ x y {} | inr _
 
   ex1 : BST ⊥ ⊤
   ex1 = leaf _
 
   ex2 : BST (value 9) (value 9)
-  ex2 = node (9 , leaf _ , leaf _)
+  ex2 = node (9 , leaf (9 prove≤ 9) , leaf (9 prove≤ 9))
 
   ex3 : BST ⊥ ⊤
-  ex3 = node (9 , node (8 , leaf _ , leaf _) , leaf _)
+  ex3 = node (9 , node (8 , leaf _ , leaf (8 prove≤ 9)) , leaf _)
 
   ex4 : BST ⊥ ⊤
   ex4 = insert (9 , _ , _) (leaf _)
 
   ex5 : BST ⊥ ⊤
   ex5 = insert (9 , _ , _) (insert (6 , _ , _) (insert (12 , _ , _) (leaf _)))
+
+  ex6 : BST ⊥ (value 100)
+  ex6 = insert (9 , _ , (9 prove≤ 100)) (insert (6 , _ , (6 prove≤ 100)) (insert (12 , _ , (12 prove≤ 100)) (leaf _)))
