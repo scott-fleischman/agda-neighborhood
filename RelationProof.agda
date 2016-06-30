@@ -18,7 +18,7 @@ data _+_ (A B : Set) : Set where
   inl : A → A + B
   inr : B → A + B
 
-Relation : Set -> Set1
+Relation : Set -> Set₁
 Relation P = P × P -> Set
 
 Total : {P : Set}
@@ -69,3 +69,33 @@ module Order
      = node (m , lt , node (p , mt , rt))
   {-# CATCHALL #-}
   rotR t = t
+
+module Test where
+  open import Agda.Builtin.Nat
+
+  ≤R : Relation Nat
+  ≤R (zero , y) = 𝟙
+  ≤R (suc x , zero) = 𝟘
+  ≤R (suc x , suc y) = ≤R (x , y)
+
+  total≤R : (x y : Nat) → Total ≤R (x , y)
+  total≤R zero y = inl _
+  total≤R (suc x) zero = inr _
+  total≤R (suc x) (suc y) = total≤R x y
+
+  open Order Nat ≤R total≤R
+
+  ex1 : BST (⊥ , ⊤)
+  ex1 = leaf _
+
+  ex2 : BST (value 9 , value 9)
+  ex2 = node (9 , leaf _ , leaf _)
+
+  ex3 : BST (⊥ , ⊤)
+  ex3 = node (9 , node (8 , leaf _ , leaf _) , leaf _)
+
+  ex4 : BST (⊥ , ⊤)
+  ex4 = insert (9 , _ , _) (leaf _)
+
+  ex5 : BST (⊥ , ⊤)
+  ex5 = insert (9 , _ , _) (insert (6 , _ , _) (insert (12 , _ , _) (leaf _)))
