@@ -5,15 +5,6 @@ module RelationProof where
 data 𝟘 : Set where
 open import Agda.Builtin.Unit renaming (⊤ to 𝟙)
 
-infixr 5 _×_ _,_
-record Σ (A : Set) (B : A → Set) : Set where
-  constructor _,_
-  field
-    fst : A
-    snd : B fst
-_×_ : (A B : Set) → Set
-A × B = Σ A (λ _ → B)
-
 Relation : Set → Set₁
 Relation P = P → P → Set
 
@@ -35,10 +26,12 @@ extend R (value x) (value y) = R x y
 extend R ⊥ (value y) = 𝟙
 extend R _ ⊥ = 𝟘
 
-_^_ : {P : Set}
-  → (S T : Relation (Extend P))
-  → (Relation (Extend P))
-_^_ {P} S T lower upper = Σ P (λ p → S lower (value p) × T (value p) upper)
+record _^_ {P : Set} (S T : Relation (Extend P)) (lower upper : Extend P) : Set where
+  constructor _,_,_
+  field
+    pivot : P
+    lowerR : S lower (value pivot)
+    upperR : T (value pivot) upper
 
 module Order
   (P : Set)
