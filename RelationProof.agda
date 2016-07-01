@@ -14,17 +14,12 @@ record Σ (A : Set) (B : A → Set) : Set where
 _×_ : (A B : Set) → Set
 A × B = Σ A (λ _ → B)
 
-data _+_ (A B : Set) : Set where
-  inl : A → A + B
-  inr : B → A + B
-
 Relation : Set → Set₁
 Relation P = P → P → Set
 
-Total : {P : Set}
-  → (R : Relation P)
-  → (Relation P)
-Total R x y = R x y + R y x
+data Total {P : Set} (R : Relation P) : (x y : P) → Set where
+  xRy : {x y : P} → R x y → Total R x y
+  yRx : {x y : P} → R y x → Total R x y
 
 data Extend (A : Set) : Set where
   ⊤ : Extend A
@@ -59,10 +54,10 @@ module Order
     → (extend L ^ extend L) lower upper
     → BST lower upper
     → BST lower upper
-  insert (y , p1 , p2) (leaf lb) = node (y , leaf p1 , leaf p2)
-  insert (y , p1 , p2) (node (p , left , right)) with total y p
-  … | inl pp = node (p , insert (y , p1 , pp) left , right)
-  … | inr pp = node (p , left , insert (y , pp , p2) right)
+  insert (y , pl , pu) (leaf _) = node (y , leaf pl , leaf pu)
+  insert (y , pl , pu) (node (p , left , right)) with total y p
+  … | xRy lyp = node (p , insert (y , pl , lyp) left , right)
+  … | yRx lpy = node (p , left , insert (y , lpy , pu) right)
 
   rotR : {lower upper : Extend P} → BST lower upper → BST lower upper
   rotR (node (p , node (m , lt , mt) , rt))
@@ -78,22 +73,22 @@ module Test where
     s≤s : {x y : Nat} → x ≤ y → suc x ≤ suc y
 
   total≤ : (x y : Nat) → Total _≤_ x y
-  total≤ zero y = inl (z≤ y)
-  total≤ (suc x) zero = inr (z≤ (suc x))
+  total≤ zero y = xRy (z≤ y)
+  total≤ (suc x) zero = yRx (z≤ (suc x))
   total≤ (suc x) (suc y) with total≤ x y
-  total≤ (suc x) (suc y) | inl p = inl (s≤s p)
-  total≤ (suc x) (suc y) | inr p = inr (s≤s p)
+  total≤ (suc x) (suc y) | xRy p = xRy (s≤s p)
+  total≤ (suc x) (suc y) | yRx p = yRx (s≤s p)
 
   open Order Nat _≤_ total≤
 
-  is-inl : {A B : Set} → A + B → Set
-  is-inl (inl _) = 𝟙
-  is-inl (inr _) = 𝟘
+  is-xRy : {P : Set} → {R : Relation P} → {x y : P} → Total R x y → Set
+  is-xRy (xRy _) = 𝟙
+  is-xRy (yRx _) = 𝟘
 
-  _prove≤_ : (x y : Nat) → {p : is-inl (total≤ x y)} → x ≤ y
+  _prove≤_ : (x y : Nat) → {p : is-xRy (total≤ x y)} → x ≤ y
   _prove≤_ x y {p} with total≤ x y
-  _prove≤_ x y | inl r = r
-  _prove≤_ x y {} | inr _
+  _prove≤_ x y | xRy r = r
+  _prove≤_ x y {} | yRx _
 
   ex1 : BST ⊥ ⊤
   ex1 = leaf _
