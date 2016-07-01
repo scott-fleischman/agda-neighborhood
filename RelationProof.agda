@@ -35,22 +35,22 @@ record _^_ {P : Set} (S T : Relation (Extend P)) (lower upper : Extend P) : Set 
 
 module Order
   (P : Set)
-  (L : Relation P)
-  (total : (x y : P) → Total L x y)
+  (R : Relation P)
+  (total : (x y : P) → Total R x y)
   where
 
   data BST (lower upper : Extend P) : Set where
-    leaf : (lb : extend L lower upper) → BST lower upper
+    leaf : (r : extend R lower upper) → BST lower upper
     node : (BST ^ BST) lower upper → BST lower upper
 
   insert : {lower upper : Extend P}
-    → (extend L ^ extend L) lower upper
+    → (extend R ^ extend R) lower upper
     → BST lower upper
     → BST lower upper
   insert (y , pl , pu) (leaf _) = node (y , leaf pl , leaf pu)
   insert (y , pl , pu) (node (p , left , right)) with total y p
-  … | xRy lyp = node (p , insert (y , pl , lyp) left , right)
-  … | yRx lpy = node (p , left , insert (y , lpy , pu) right)
+  … | xRy yRp = node (p , insert (y , pl , yRp) left , right)
+  … | yRx pRy = node (p , left , insert (y , pRy , pu) right)
 
   rotR : {lower upper : Extend P} → BST lower upper → BST lower upper
   rotR (node (p , node (m , lt , mt) , rt))
