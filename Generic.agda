@@ -7,9 +7,19 @@ record <P_P> (P : Set) : Set where
   constructor !
   field {{prf}} : P
 
-_o_ : {A : Set}{B : A -> Set}{C : (a : A) -> B a -> Set}
-      (f : {a : A}(b : B a) -> C a b)(g : (a : A) -> B a) ->
-      (a : A) -> C a (g a)
+_=>_ : Set -> Set -> Set
+P => T = {{p : P}} -> T
+infixr 3 _=>_
+
+data Nat : Set where
+  ze : Nat
+  su : Nat -> Nat
+
+_o_ : {A : Set} {B : A -> Set} {C : (a : A) -> B a -> Set}
+  (f : {a : A} (b : B a) -> C a b)
+  (g : (a : A) -> B a)
+  -> (a : A)
+  -> C a (g a)
 (f o g) x = f (g x)
 infixr 3 _o_
 
@@ -191,3 +201,202 @@ module BinarySearchTreeGen
 
   makeTree : forall {F} -> MuJJ F P -> <$ L $>T (bot / top)
   makeTree = foldr (\ p -> insert2 <$ p $>ic) leaf
+
+<$_$>+ : forall {P} -> REL P -> REL <$ P $>D
+<$ L $>+ = MuOSO qListSO L
+
+pattern nil        = la inl ! ra
+pattern _//_ x xs  = la inr (x / ! / xs) ra
+infixr 6 _//_
+
+module MergeSO where
+  postulate
+    P : Set
+    L : REL P
+    owoto : forall x y -> OWOTO L (x / y)
+
+  mergeSO : [ <$ L $>+ >> <$ L $>+ >> <$ L $>+ ]
+  mergeSO          nil        = id
+  mergeSO {l / u}  (x // xs)  = go where
+    go :  forall {l}{{_ : <$ L $>F (l / tb x)}} -> (<$ L $>+ >> <$ L $>+) (l / u)
+    go nil        = x // xs
+    go (y // ys)  with owoto x y
+    ... | le  = x // mergeSO xs (y // ys)
+    ... | ge  = y // go ys
+
+  olistMon : forall {lu} -> <$ L $>F lu => Monoid (<$ L $>+ lu)
+  olistMon = record {neutral = nil ; combine = mergeSO}
+
+  mergeJJ : forall {F} -> MuJJ F P -> <$ L $>+ (bot / top)
+  mergeJJ = crush olistMon \ p -> p // nil
+
+  qLTree : JJ
+  qLTree = (q1 q+ qP) q+ qR q* qR
+
+  pattern none      = la inl (inl it) ra
+  pattern one p     = la inl (inr p) ra
+  pattern fork l r  = la inr (l / r) ra
+
+  twistIn : P -> MuJJ qLTree P -> MuJJ qLTree P
+  twistIn p none        = one p
+  twistIn p (one q)     = fork (one p) (one q)
+  twistIn p (fork l r)  = fork (twistIn p r) l
+
+  mergeSort : forall {F} -> MuJJ F P -> <$ L $>+ (bot / top)
+  mergeSort = mergeJJ o foldr twistIn none
+
+sandwich :  forall {P}{L : REL P} -> [ (<$ L $>+ ^ <$ L $>+) >> <$ L $>+ ]
+sandwich (nil      \\ p \\ ys)  = p // ys
+sandwich (x // xs  \\ p \\ ys)  = x // sandwich (xs \\ p \\ ys)
+
+flattenT : forall {P}{L : REL P} -> [ <$ L $>T >> <$ L $>+ ]
+flattenT leaf          = nil
+flattenT (node l p r)  = sandwich (flattenT l \\ p \\ flattenT r)
+
+flattenOSO : forall {P}{L : REL P}{F} -> [ MuOSO F L >> <$ L $>+ ]
+flattenOSO = flattenT o treeOSO
+
+infixr 8 _+++_
+Replacement : forall {P} -> REL P -> REL <$ P $>D
+Replacement L (n / u) = forall {m} -> <$ L $>F (m / n) => <$ L $>+ (m / u)
+
+_+++_ : forall {P}{L : REL P}{l n u} ->
+  <$ L $>+ (l / n) -> Replacement L (n / u) -> <$ L $>+ (l / u)
+nil        +++ ys = ys
+(x // xs)  +++ ys = x // xs +++ ys
+
+fflapp : forall {P}{L : REL P}{F}{l n u} ->
+  MuOSO F L (l / n) ->  Replacement L (n / u) -> <$ L $>+ (l / u)
+fflapp {P}{L}{F}{u = u} t ys = go qR t ys where
+  go :   forall {l n} G -> <! G !>OSO (MuOSO F L) L (l / n) ->
+          Replacement L (n / u) -> <$ L $>+ (l / u)
+  go qR        la t ra        ys  = go F t ys
+  go q1        !              ys  = ys
+  go (S q+ T)  (inl s)        ys  = go S s ys
+  go (S q+ T)  (inr t)        ys  = go T t ys
+  go (S q^ T)  (s \\ p \\ t)  ys  = go S s (p // go T t ys)
+
+flatten : forall {P}{L : REL P}{F} -> [ MuOSO F L >> <$ L $>+ ]
+flatten t = fflapp t nil
+
+data IO (I : Set) : Set where
+  qR         : I -> IO I
+  q0 q1      : IO I
+  _q+_ _q^_  : IO I -> IO I -> IO I
+
+<!_!>IO :  forall {I P} -> IO I ->
+           (I -> REL <$ P $>D) -> REL P -> REL <$ P $>D
+<! qR i !>IO    R L  = R i
+<! q0 !>IO      R L  = \ _ -> Zero
+<! q1 !>IO      R L  = <^ L ^>P
+<! S q+ T !>IO  R L  = <! S !>IO R L -+- <! T !>IO R L
+<! S q^ T !>IO  R L  = <! S !>IO R L ^ <! T !>IO R L
+
+data MuIO  {I P : Set}(F : I -> IO I)(L : REL P)
+           (i : I)(lu : <$ P $>D * <$ P $>D) : Set where
+  la_ra : <! F i !>IO (MuIO F L) L lu -> MuIO F L i lu
+
+qListIO qTreeIO qIntervalIO : One -> IO One
+qListIO      _ = q1 q+ (q1 q^ qR it)
+qTreeIO      _ = q1 q+ (qR it q^ qR it)
+qIntervalIO  _ = q1 q^ q1
+
+<$_$>i+ <$_$>iT <$_$>iI : forall {P} -> REL P -> REL <$ P $>D
+<$ L $>i+  = MuIO qListIO      L it
+<$ L $>iT  = MuIO qTreeIO      L it
+<$ L $>iI  = MuIO qIntervalIO  L it
+
+pattern <$_$>io p = la p / ! / ! ra
+
+qVecIO : Nat -> IO Nat
+qVecIO ze      = q1
+qVecIO (su n)  = q1 q^ qR n
+
+qEvenIO : Nat -> IO Nat
+qEvenIO ze           = q1
+qEvenIO (su ze)      = q0
+qEvenIO (su (su n))  = q1 q^ q1 q^ qR n
+
+treeIO :  forall {I P F}{L : REL P}{i : I} ->
+  [ MuIO F L i >> <$ L $>iT ]
+pattern leif = la inl ! ra
+pattern nodi lp p pu = la inr (p / lp / pu) ra
+treeIO {F = F}{L = L}{i = i} la t ra = go (F i) t where
+  go : forall G -> [ <! G !>IO (MuIO F L) L >> <$ L $>iT ]
+  go (qR i)    t              = treeIO t
+  go q0        ()
+  go q1        !              = leif
+  go (S q+ T)  (inl s)        = go S s
+  go (S q+ T)  (inr t)        = go T t
+  go (S q^ T)  (s \\ p \\ t)  = nodi (go S s) p (go T t)
+
+flattenIO :  forall {I P F}{L : REL P}{i : I} ->
+  [ MuIO F L i >> <$ L $>i+ ]
+pattern _/i/_ x xs = la inr (x / ! / xs) ra
+flattenIO {I}{P}{F}{L}{i}{l / u} la t ra = go (F i) t la inl ! ra where
+  go : forall G {l n} -> <! G !>IO (MuIO F L) L (l / n) ->
+       (forall {m} -> <$ L $>F (m / n) => <$ L $>i+ (m / u)) ->
+       <$ L $>i+ (l / u)
+  go (qR i)    la t ra        ys = go (F i) t ys
+  go q0        ()             ys
+  go q1        !              ys = ys
+  go (S q+ T)  (inl s)        ys = go S s ys
+  go (S q+ T)  (inr t)        ys = go T t ys
+  go (S q^ T)  (s \\ p \\ t)  ys = go S s (p /i/ go T t ys)
+
+
+q23TIO : Nat -> IO Nat
+q23TIO ze      = q1
+q23TIO (su h)  = qR h q^ (qR h q+ (qR h q^ qR h))
+
+<$_$>23 : forall {P}(L : REL P) -> Nat -> REL <$ P $>D
+<$ L $>23 = MuIO q23TIO L
+
+pattern no0               = la ! ra
+pattern no2 lt p rt       = la p / lt / inl rt ra
+pattern no3 lt p mt q rt  = la p / lt / inr (q / mt / rt) ra
+pattern via p = p / ! / !
+pattern _-\_ t p = p / t / !
+
+module Tree23
+  {P : Set}(L : REL P)(owoto : forall x y -> OWOTO L (x / y)) where
+
+  ins23 :  forall h {lu} -> <$ L $>iI lu -> <$ L $>23 h lu ->
+           <$ L $>23 h lu +
+           Sg P \ p -> <$ L $>23 h (fst lu / tb p) * <$ L $>23 h (tb p / snd lu)
+  ins23 ze      <$ y $>io no0 = inr (la ! ra \\ y \\ la ! ra)
+  ins23 (su h)  <$ y $>io la lt \\ p \\ rest ra with owoto y p
+  ins23 (su h)  <$ y $>io la lt \\ p \\ rest ra | le
+    with ins23 h <$ y $>io lt
+  ins23 (su h)  <$ y $>io la lt \\ p \\ rest ra | le
+    | inl lt'                = inl la lt' \\ p \\ rest ra
+  ins23 (su h)  <$ y $>io (no2 lt p rt)       | le
+    | inr (llt \\ r \\ lrt)  = inl (no3 llt r lrt p rt)
+  ins23 (su h)  <$ y $>io (no3 lt p mt q rt)  | le
+    | inr (llt \\ r \\ lrt)  = inr (no2 llt r lrt \\ p \\ no2 mt q rt)
+  ins23 (su h)  <$ y $>io (no2 lt p rt) | ge  with ins23 h <$ y $>io rt
+  ins23 (su h)  <$ y $>io (no2 lt p rt) | ge  | rt' = inl la lt \\ p \\ rt' ra
+  ins23 (su h)  <$ y $>io (no3 lt p mt q rt) | ge  with owoto y q
+  ins23 (su h)  <$ y $>io (no3 lt p mt q rt)  | ge  |   le
+    with ins23 h <$ y $>io mt
+  ins23 (su h)  <$ y $>io (no3 lt p mt q rt)  | ge  |   le
+    | inl mt'                = inl (no3 lt p mt' q rt)
+  ins23 (su h)  <$ y $>io (no3 lt p mt q rt)  | ge  |   le
+    | inr (mlt \\ r \\ mrt)  = inr (no2 lt p mlt \\ r \\ no2 mrt q rt)
+
+  ins23 (su h)  <$ y $>io (no3 lt p mt q rt)  | ge  |   ge
+    with ins23 h <$ y $>io rt
+  ins23 (su h)  <$ y $>io (no3 lt p mt q rt)  | ge  |   ge
+    | inl rt'                = inl (no3 lt p mt q rt')
+  ins23 (su h)  <$ y $>io (no3 lt p mt q rt)  | ge  |   ge
+    | inr (rlt \\ r \\ rrt)  = inr (no2 lt p mt \\ q \\ no2 rlt r rrt)
+
+  T23 = Sg Nat \ h -> <$ L $>23 h (bot / top)
+
+  insert2 : P -> T23 -> T23
+  insert2 p (h / t) with ins23 h <$ p $>io t
+  ... | inl t'               = h     / t'
+  ... | inr (lt \\ r \\ rt)  = su h  / no2 lt r rt
+
+  sort : forall {F} -> MuJJ F P -> <$ L $>i+ (bot / top)
+  sort = flattenIO o snd o foldr insert2 (ze / no0)
