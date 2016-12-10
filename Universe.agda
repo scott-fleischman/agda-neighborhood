@@ -10,8 +10,8 @@ record Σ (A : Set) (B : A → Set) : Set where
     fst : A
     snd : B fst
 
-infixr 5 _×_ _,_ _`×_
-infixr 4 _+_ _`+_
+infixr 5 _×_ _,_ _`×_ _˙×_
+infixr 4 _+_ _`+_ _˙+_
 
 _×_ : (A B : Set) → Set
 A × B = Σ A (λ _ → B)
@@ -24,15 +24,15 @@ data JJ : Set where
   `R `P `1 : JJ
   _`+_ _`×_ : JJ → JJ → JJ
 
-⟦_⟧ⱼⱼ : JJ → Set → Set → Set
-⟦ `R ⟧ⱼⱼ R P = R
-⟦ `P ⟧ⱼⱼ R P = P
-⟦ `1 ⟧ⱼⱼ R P = 𝟙
-⟦ S `+ T ⟧ⱼⱼ R P = ⟦ S ⟧ⱼⱼ R P + ⟦ T ⟧ⱼⱼ R P
-⟦ S `× T ⟧ⱼⱼ R P = ⟦ S ⟧ⱼⱼ R P × ⟦ T ⟧ⱼⱼ R P
+⟦_⟧ᴶᴶ : JJ → Set → Set → Set
+⟦ `R ⟧ᴶᴶ R P = R
+⟦ `P ⟧ᴶᴶ R P = P
+⟦ `1 ⟧ᴶᴶ R P = 𝟙
+⟦ S `+ T ⟧ᴶᴶ R P = ⟦ S ⟧ᴶᴶ R P + ⟦ T ⟧ᴶᴶ R P
+⟦ S `× T ⟧ᴶᴶ R P = ⟦ S ⟧ᴶᴶ R P × ⟦ T ⟧ᴶᴶ R P
 
-data μⱼⱼ (F : JJ) (P : Set) : Set where
-  ⟨_⟩ : ⟦ F ⟧ⱼⱼ (μⱼⱼ F P) P → μⱼⱼ F P
+data μᴶᴶ (F : JJ) (P : Set) : Set where
+  ⟨_⟩ : ⟦ F ⟧ᴶᴶ (μᴶᴶ F P) P → μᴶᴶ F P
 
 record Applicative (H : Set → Set) : Set₁ where
   field
@@ -44,15 +44,17 @@ traverse
   : ∀ {H F A B}
   → Applicative H
   → (A → H B)
-  → μⱼⱼ F A
-  → H (μⱼⱼ F B)
-traverse {H} {F} {A} {B} AH h t = go `R t where
+  → μᴶᴶ F A
+  → H (μᴶᴶ F B)
+traverse {H} {F} {A} {B} AH h t = go `R t
+  where
   pu = pure AH
   _⊛_ = ap AH
   infixl 5 _⊛_
+
   go : ∀ G
-    → ⟦ G ⟧ⱼⱼ (μⱼⱼ F A) A
-    → H (⟦ G ⟧ⱼⱼ (μⱼⱼ F B) B)
+    → ⟦ G ⟧ᴶᴶ (μᴶᴶ F A) A
+    → H (⟦ G ⟧ᴶᴶ (μᴶᴶ F B) B)
   go `R ⟨ t ⟩ = pu ⟨_⟩ ⊛ go F t
   go `P a = h a
   go `1 <> = pu <>
@@ -68,8 +70,8 @@ idApp = record { pure = id; ap = id }
 
 map : ∀ {F A B}
   → (A → B)
-  → μⱼⱼ F A
-  → μⱼⱼ F B
+  → μᴶᴶ F A
+  → μᴶᴶ F B
 map = traverse idApp
 
 record Monoid (X : Set) : Set where
@@ -78,7 +80,7 @@ record Monoid (X : Set) : Set where
     combine : X → X → X
   monApp : Applicative (λ _ → X)
   monApp = record { pure = λ _ → neutral ; ap = combine }
-  crush : ∀ {P F} → (P → X) → μⱼⱼ F P → X
+  crush : ∀ {P F} → (P → X) → μᴶᴶ F P → X
   crush = traverse {B = 𝟘} monApp
 open Monoid
 
@@ -91,7 +93,85 @@ compMon = record { neutral = id ; combine = λ f g → f ∘ g }
 foldr : ∀ {F A B}
   → (A → B → B)
   → B
-  → μⱼⱼ F A
+  → μᴶᴶ F A
   → B
 foldr f b t = crush compMon f t b
 
+
+-- 10. The Simple Orderable Subuniverse of JJ
+
+data SO : Set where
+  `R `1 : SO
+  _`+_ _`^_ : SO → SO → SO
+infixr 5 _`^_
+
+⟦_⟧ˢᵒ : SO → JJ
+⟦ `R ⟧ˢᵒ = `R
+⟦ `1 ⟧ˢᵒ = `1
+⟦ S `+ T ⟧ˢᵒ = ⟦ S ⟧ˢᵒ `+ ⟦ T ⟧ˢᵒ
+⟦ S `^ T ⟧ˢᵒ = ⟦ S ⟧ˢᵒ `× `P `× ⟦ T ⟧ˢᵒ
+
+μˢᵒ : SO → Set → Set
+μˢᵒ F P = μᴶᴶ ⟦ F ⟧ˢᵒ P
+
+`List : SO
+`List = `1 `+ (`1 `^ `R)
+`Tree : SO
+`Tree = `1 `+ (`R `^ `R)
+`Interval : SO
+`Interval = `1 `^ `1
+
+tree
+  : ∀ {P F}
+  → μˢᵒ F P
+  → μˢᵒ `Tree P
+tree {P} {F} ⟨ f ⟩ = go F f
+  where
+  go : ∀ G
+    → ⟦ ⟦ G ⟧ˢᵒ ⟧ᴶᴶ (μˢᵒ F P) P
+    → μˢᵒ `Tree P
+  go `R x = tree x
+  go `1 <> = ⟨ inl <> ⟩
+  go (S `+ T) (inl s) = go S s
+  go (S `+ T) (inr t) = go T t
+  go (S `^ T) (s , p , t) = ⟨ inr (go S s , p , go T t) ⟩
+
+data <⊥_⊤> (P : Set) : Set where
+  ⊤ : <⊥ P ⊤>
+  # : P → <⊥ P ⊤>
+  ⊥ : <⊥ P ⊤>
+
+Rel : Set → Set₁
+Rel P = P × P → Set
+
+_⊥⊤ : ∀ {P} → Rel P → Rel <⊥ P ⊤>
+(L ⊥⊤) (_ , ⊤) = 𝟙
+(L ⊥⊤) (# x , # y) = L (x , y)
+(L ⊥⊤) (⊥ , _) = 𝟙
+(L ⊥⊤) (_ , _) = 𝟘
+
+
+--⌈_⌉ : ∀ {P} → Rel P → Rel <⊥ P ⊤>
+--⌈ L ⌉ xy = ⌈ ? ⌉
+
+˙0 : {I : Set} → I → Set
+˙0 i = 𝟘
+˙1 : {I : Set} → I → Set
+˙1 i = 𝟙
+
+_˙+_ : {I : Set} → (f g : I → Set) → I → Set
+(S ˙+ T) i = S i + T i
+_˙×_ : {I : Set} → (f g : I → Set) → I → Set
+(S ˙× T) i = S i × T i
+_˙→_ : {I : Set} → (f g : I → Set) → I → Set
+(S ˙→ T) i = S i → T i
+infixr 2 _˙→_
+
+[_] : {I : Set} → (I → Set) → Set
+[ F ] = ∀ {i} → F i
+
+⟦_⟧≤ˢᵒ : SO → ∀ {P} → Rel <⊥ P ⊤> → Rel P → Rel <⊥ P ⊤>
+⟦ `R ⟧≤ˢᵒ R L = R
+⟦ `1 ⟧≤ˢᵒ R L = {!!}
+⟦ x `+ x₁ ⟧≤ˢᵒ R L = {!!}
+⟦ x `^ x₁ ⟧≤ˢᵒ R L = {!!}
