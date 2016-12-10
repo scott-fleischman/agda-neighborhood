@@ -121,38 +121,41 @@ infixr 5 _`^_
 `Interval : SO
 `Interval = `1 `^ `1
 
-tree
+treeˢᵒ
   : ∀ {P F}
   → μˢᵒ F P
   → μˢᵒ `Tree P
-tree {P} {F} ⟨ f ⟩ = go F f
+treeˢᵒ {P} {F} ⟨ f ⟩ = go F f
   where
   go : ∀ G
     → ⟦ ⟦ G ⟧ˢᵒ ⟧ᴶᴶ (μˢᵒ F P) P
     → μˢᵒ `Tree P
-  go `R x = tree x
+  go `R x = treeˢᵒ x
   go `1 <> = ⟨ inl <> ⟩
   go (S `+ T) (inl s) = go S s
   go (S `+ T) (inr t) = go T t
   go (S `^ T) (s , p , t) = ⟨ inr (go S s , p , go T t) ⟩
 
-data <⊥_⊤> (P : Set) : Set where
-  ⊤ : <⊥ P ⊤>
-  # : P → <⊥ P ⊤>
-  ⊥ : <⊥ P ⊤>
+data <⊥_⊤>ᵈ (P : Set) : Set where
+  ⊤ : <⊥ P ⊤>ᵈ
+  # : P → <⊥ P ⊤>ᵈ
+  ⊥ : <⊥ P ⊤>ᵈ
 
 Rel : Set → Set₁
 Rel P = P × P → Set
 
-_⊥⊤ : ∀ {P} → Rel P → Rel <⊥ P ⊤>
-(L ⊥⊤) (_ , ⊤) = 𝟙
-(L ⊥⊤) (# x , # y) = L (x , y)
-(L ⊥⊤) (⊥ , _) = 𝟙
-(L ⊥⊤) (_ , _) = 𝟘
+<⊥_⊤>ᶠ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+<⊥ L ⊤>ᶠ (_ , ⊤) = 𝟙
+<⊥ L ⊤>ᶠ (# x , # y) = L (x , y)
+<⊥ L ⊤>ᶠ (⊥ , _) = 𝟙
+<⊥ L ⊤>ᶠ (_ , _) = 𝟘
 
+record ⌈_⌉ᵖ (P : Set) : Set where
+  constructor !
+  field {{proof}} : P
 
---⌈_⌉ : ∀ {P} → Rel P → Rel <⊥ P ⊤>
---⌈ L ⌉ xy = ⌈ ? ⌉
+⌈_⌉ʳ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+⌈ L ⌉ʳ xy = ⌈ <⊥ L ⊤>ᶠ xy ⌉ᵖ
 
 ˙0 : {I : Set} → I → Set
 ˙0 i = 𝟘
@@ -170,8 +173,50 @@ infixr 2 _˙→_
 [_] : {I : Set} → (I → Set) → Set
 [ F ] = ∀ {i} → F i
 
-⟦_⟧≤ˢᵒ : SO → ∀ {P} → Rel <⊥ P ⊤> → Rel P → Rel <⊥ P ⊤>
+_˙^_ : ∀ {P} → (S T : Rel <⊥ P ⊤>ᵈ) → Rel <⊥ P ⊤>ᵈ
+_˙^_ {P} S T (l , u) = Σ P λ p → S (l , # p) × T (# p , u)
+
+pattern _‘_‘_ s p t = p , s , t
+infixr 5 _‘_‘_
+
+⟦_⟧≤ˢᵒ : SO → ∀ {P} → Rel <⊥ P ⊤>ᵈ → Rel P → Rel <⊥ P ⊤>ᵈ
 ⟦ `R ⟧≤ˢᵒ R L = R
-⟦ `1 ⟧≤ˢᵒ R L = {!!}
-⟦ x `+ x₁ ⟧≤ˢᵒ R L = {!!}
-⟦ x `^ x₁ ⟧≤ˢᵒ R L = {!!}
+⟦ `1 ⟧≤ˢᵒ R L = ⌈ L ⌉ʳ
+⟦ S `+ T ⟧≤ˢᵒ R L = ⟦ S ⟧≤ˢᵒ R L ˙+ ⟦ T ⟧≤ˢᵒ R L
+⟦ S `^ T ⟧≤ˢᵒ R L = ⟦ S ⟧≤ˢᵒ R L ˙^ ⟦ T ⟧≤ˢᵒ R L
+
+data μ≤ˢᵒ (F : SO) {P : Set} (L : Rel P) (lu : <⊥ P ⊤>ᵈ × <⊥ P ⊤>ᵈ) : Set where
+  ⟨_⟩ : ⟦ F ⟧≤ˢᵒ (μ≤ˢᵒ F L) L lu → μ≤ˢᵒ F L lu
+
+_Δ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+L Δ = μ≤ˢᵒ `Tree L
+pattern leaf = ⟨ inl ! ⟩
+pattern node lp p pu = ⟨ inr (lp ‘ p ‘ pu) ⟩
+
+_• : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+L • = μ≤ˢᵒ `Interval L
+
+pattern _° p = ⟨ (p , ! , !) ⟩
+
+tree : ∀ {P F} {L : Rel P} → [ μ≤ˢᵒ F L ˙→ L Δ ]
+tree {P} {F} {L} ⟨ f ⟩ = go F f where
+  go : ∀ G → [ ⟦ G ⟧≤ˢᵒ (μ≤ˢᵒ F L) L ˙→ L Δ ]
+  go `R x = tree x
+  go `1 ! = leaf
+  go (S `+ T) (inl s) = go S s
+  go (S `+ T) (inr t) = go T t
+  go (S `^ T) (s ‘ p ‘ t) = node (go S s) p (go T t)
+
+OWOTO : ∀ {P} (L : Rel P) -> Rel P
+OWOTO L (x , y) = ⌈ L (x , y) ⌉ᵖ + ⌈ L (y , x) ⌉ᵖ
+
+module BSTGen {P : Set} (L : Rel P) (owoto : ∀ x y -> OWOTO L (x , y)) where
+
+  insert : [ (L •) ˙→ (L Δ) ˙→ (L Δ) ]
+  insert (y °) leaf = node leaf y leaf
+  insert (y °) (node lt p rt) with owoto y p
+  … | inl ! = node (insert (y °) lt) p rt
+  … | inr ! = node lt p (insert (y °) rt)
+
+  makeTree : ∀ {F} → μᴶᴶ F P → (L Δ) (⊥ , ⊤)
+  makeTree = foldr (λ p → insert (p °)) leaf
