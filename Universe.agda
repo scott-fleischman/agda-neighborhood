@@ -81,3 +81,17 @@ record Monoid (X : Set) : Set where
   crush : ∀ {P F} → (P → X) → μⱼⱼ F P → X
   crush = traverse {B = 𝟘} monApp
 open Monoid
+
+_∘_ : {A B C : Set} → (B → C) → (A → B) → A → C
+(f ∘ g) x = f (g x)
+
+compMon : ∀ {X} → Monoid (X → X)
+compMon = record { neutral = id ; combine = λ f g → f ∘ g }
+
+foldr : ∀ {F A B}
+  → (A → B → B)
+  → B
+  → μⱼⱼ F A
+  → B
+foldr f b t = crush compMon f t b
+
