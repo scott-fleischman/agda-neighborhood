@@ -154,6 +154,10 @@ record ⌈_⌉ᵖ (P : Set) : Set where
   constructor !
   field {{proof}} : P
 
+_⇒_ : Set → Set → Set
+P ⇒ T = {{p : P}} → T
+infixr 3 _⇒_
+
 ⌈_⌉ʳ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
 ⌈ L ⌉ʳ xy = ⌈ <⊥ L ⊤>ᶠ xy ⌉ᵖ
 
@@ -212,7 +216,7 @@ OWOTO L (x , y) = ⌈ L (x , y) ⌉ᵖ + ⌈ L (y , x) ⌉ᵖ
 
 module BSTGen {P : Set} (L : Rel P) (owoto : ∀ x y -> OWOTO L (x , y)) where
 
-  insert : [ (L •) ˙→ (L Δ) ˙→ (L Δ) ]
+  insert : [ L • ˙→ L Δ ˙→ L Δ ]
   insert (y °) leaf = node leaf y leaf
   insert (y °) (node lt p rt) with owoto y p
   … | inl ! = node (insert (y °) lt) p rt
@@ -220,3 +224,45 @@ module BSTGen {P : Set} (L : Rel P) (owoto : ∀ x y -> OWOTO L (x , y)) where
 
   makeTree : ∀ {F} → μᴶᴶ F P → (L Δ) (⊥ , ⊤)
   makeTree = foldr (λ p → insert (p °)) leaf
+
+_⁺ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+L ⁺ = μ≤ˢᵒ `List L
+
+pattern [] = ⟨ inl ! ⟩
+pattern _∷_ x xs = ⟨ inr (x , ! , xs) ⟩
+infixr 6 _∷_
+
+module Merger
+  {P : Set}
+  (L : Rel P)
+  (owoto : ∀ x y -> OWOTO L (x , y))
+  where
+  merge : [ L ⁺ ˙→ L ⁺ ˙→ L ⁺ ]
+  merge [] = id
+  merge {l , u} (x ∷ xs) = go where
+    go : ∀ {l} {{_ : <⊥ L ⊤>ᶠ (l , # x)}} → (L ⁺ ˙→ L ⁺) (l , u)
+    go [] = x ∷ xs
+    go (y ∷ ys) with owoto x y
+    … | inl ! = x ∷ merge xs (y ∷ ys)
+    … | inr ! = y ∷ go ys
+
+  olMon : ∀ {lu} → <⊥ L ⊤>ᶠ lu ⇒ Monoid ((L ⁺) lu)
+  olMon = record { neutral = [] ; combine = merge }
+
+  mergeᴶᴶ : ∀ {F} → μᴶᴶ F P → (L ⁺) (⊥ , ⊤)
+  mergeᴶᴶ = crush olMon (_∷ [])
+
+  `qLTree : JJ
+  `qLTree = (`1 `+ `P) `+ (`R `× `R)
+
+  pattern none = ⟨ inl (inl <>) ⟩
+  pattern one p = ⟨ inl (inr p) ⟩
+  pattern fork l r = ⟨ inr (l , r) ⟩
+
+  twistIn : P → μᴶᴶ `qLTree P → μᴶᴶ `qLTree P
+  twistIn p none = one p
+  twistIn p (one q) = fork (one p) (one q)
+  twistIn p (fork l r) = fork (twistIn p r) l
+
+  mergeSort : ∀ {F} → μᴶᴶ F P → (L ⁺) (⊥ , ⊤)
+  mergeSort = mergeᴶᴶ ∘ foldr twistIn none
