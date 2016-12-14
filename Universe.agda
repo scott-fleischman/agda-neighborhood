@@ -203,7 +203,7 @@ pattern node≤ˢᵒ lp p pu = ⟨ inr (lp ‘ p ‘ pu) ⟩
 _•ˢᵒ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
 L •ˢᵒ = μ≤ˢᵒ `Intervalˢᵒ L
 
-pattern _° p = ⟨ (p , ! , !) ⟩
+pattern _°ˢᵒ p = ⟨ (p , ! , !) ⟩
 
 tree≤ˢᵒ : ∀ {P F} {L : Rel P} → [ μ≤ˢᵒ F L ˙→ L Δˢᵒ ]
 tree≤ˢᵒ {P} {F} {L} ⟨ f ⟩ = go F f where
@@ -220,13 +220,13 @@ OWOTO L (x , y) = ⌈ L (x , y) ⌉ᵖ + ⌈ L (y , x) ⌉ᵖ
 module BSTGen {P : Set} (L : Rel P) (owoto : ∀ x y -> OWOTO L (x , y)) where
 
   insert : [ L •ˢᵒ ˙→ L Δˢᵒ ˙→ L Δˢᵒ ]
-  insert (y °) leaf≤ˢᵒ = node≤ˢᵒ leaf≤ˢᵒ y leaf≤ˢᵒ
-  insert (y °) (node≤ˢᵒ lt p rt) with owoto y p
-  … | inl ! = node≤ˢᵒ (insert (y °) lt) p rt
-  … | inr ! = node≤ˢᵒ lt p (insert (y °) rt)
+  insert (y °ˢᵒ) leaf≤ˢᵒ = node≤ˢᵒ leaf≤ˢᵒ y leaf≤ˢᵒ
+  insert (y °ˢᵒ) (node≤ˢᵒ lt p rt) with owoto y p
+  … | inl ! = node≤ˢᵒ (insert (y °ˢᵒ) lt) p rt
+  … | inr ! = node≤ˢᵒ lt p (insert (y °ˢᵒ) rt)
 
   makeTree : ∀ {F} → μᴶᴶ F P → (L Δˢᵒ) (⊥ , ⊤)
-  makeTree = foldr (λ p → insert (p °)) leaf≤ˢᵒ
+  makeTree = foldr (λ p → insert (p °ˢᵒ)) leaf≤ˢᵒ
 
 _⁺ˢᵒ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
 L ⁺ˢᵒ = μ≤ˢᵒ `Listˢᵒ L
@@ -337,7 +337,7 @@ pattern node lp p pu = ⟨ inr (lp ‘ p ‘ pu) ⟩
 `Tree : 𝟙 → IO 𝟙
 `Tree _ = `1 `+ (`R <> `^ `R <>)
 `Interval : 𝟙 → IO 𝟙
-`Interval _ = `1 `+ `1
+`Interval _ = `1 `^ `1
 
 _Δ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
 L Δ = μ≤ᴵᴼ `Tree L <>
@@ -348,7 +348,7 @@ L • = μ≤ᴵᴼ `Interval L <>
 _⁺ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
 L ⁺ = μ≤ᴵᴼ `List L <>
 
-open import Agda.Builtin.Nat renaming (Nat to ℕ)
+open import Agda.Builtin.Nat renaming (Nat to ℕ) using (zero) using (suc)
 
 Rel≤ : Rel ℕ
 Rel≤ (x , y) = x <= y where
@@ -402,3 +402,39 @@ flatten {I} {P} {F} {L} {i} {l , u} ⟨ t ⟩ = go (F i) t ⟨ inl ! ⟩ where
   go (S `+ T) (inl s) ys = go S s ys
   go (S `+ T) (inr t) ys = go T t ys
   go (S `^ T) (s ‘ p ‘ t) ys = go S s ⟨ (inr (p , ! , go T t ys)) ⟩
+
+`Tree23 : ℕ → IO ℕ
+`Tree23 zero = `1
+`Tree23 (suc h) = `R h `^ (`R h `+ (`R h `^ `R h))
+
+_²³ : ∀ {P} (L : Rel P) → ℕ → Rel <⊥ P ⊤>ᵈ
+L ²³ = μ≤ᴵᴼ `Tree23 L
+
+pattern no₀ = ⟨ ! ⟩
+pattern no₂ lt p rt = ⟨ p , lt , inl rt ⟩
+pattern no₃ lt p mt q rt = ⟨ p , lt , inr (q , mt , rt) ⟩
+
+pattern le = inl !
+pattern ge = inr !
+
+module 23Tree
+  {P : Set}
+  (L : Rel P)
+  (owoto : ∀ x y -> OWOTO L (x , y))
+  where
+  pattern _° p = ⟨ p , ! , ! ⟩
+
+  ins23 : ∀ h {lu}
+    → (L •) lu
+    → (L ²³) h lu
+    → (L ²³) h lu
+    + Σ P λ p
+      → (L ²³) h (Σ.fst lu , # p)
+      × (L ²³) h (# p , Σ.snd lu)
+  ins23 zero (y °) ⟨ ! ⟩ = inr (⟨ ! ⟩ ‘ y ‘ ⟨ ! ⟩)
+  ins23 (suc x) (y °) ⟨ lt ‘ p ‘ rest ⟩ with owoto y p
+  ins23 (suc x) (y °) ⟨ lt ‘ p ‘ rest ⟩ | le = {!!}
+  ins23 (suc x) (y °) (no₂ lt p rt) | ge = {!!}
+  ins23 (suc x) (y °) (no₃ lt p mt q rt) | ge with owoto y q
+  ins23 (suc x) (y °) (no₃ lt p mt q rt) | ge | le = {!!}
+  ins23 (suc x) (y °) (no₃ lt p mt q rt) | ge | ge = {!!}
