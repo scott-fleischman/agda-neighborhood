@@ -266,3 +266,43 @@ module Merger
 
   mergeSort : ∀ {F} → μᴶᴶ F P → (L ⁺) (⊥ , ⊤)
   mergeSort = mergeᴶᴶ ∘ foldr twistIn none
+
+sandwich : ∀ {P} {L : Rel P} → [ (L ⁺) ˙^ (L ⁺) ˙→ (L ⁺) ]
+sandwich ([] ‘ p ‘ ys) = p ∷ ys
+sandwich (x ∷ xs ‘ p ‘ ys) = x ∷ sandwich (xs ‘ p ‘ ys)
+
+flatten' : ∀ {P} {L : Rel P} → [ (L Δ) ˙→ (L ⁺) ]
+flatten' leaf = []
+flatten' (node l p r) = sandwich (flatten' l ‘ p ‘ flatten' r)
+
+flatten≤ˢᵒ : ∀ {P} {L : Rel P} {F} → [ μ≤ˢᵒ F L ˙→ L ⁺ ]
+flatten≤ˢᵒ = flatten' ∘ tree
+
+infixr 8 _++_
+RepL : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+RepL L (n , u) = ∀ {m} → <⊥ L ⊤>ᶠ (m , n) ⇒ (L ⁺) (m , u)
+_++_ : ∀ {P} {L : Rel P} {l n u}
+  → (L ⁺) (l , n)
+  → RepL L (n , u)
+  → (L ⁺) (l , u)
+[] ++ ys = ys
+(x ∷ xs) ++ ys = x ∷ xs ++ ys
+
+flapp : ∀ {P} {L : Rel P} {F} {l n u}
+  → μ≤ˢᵒ F L (l , n)
+  → RepL L (n , u)
+  → (L ⁺) (l , u)
+flapp {P} {L} {F} {u = u} t ys = go `R t ys
+  where
+  go : ∀ {l n} G
+    → ⟦ G ⟧≤ˢᵒ (μ≤ˢᵒ F L) L (l , n)
+    → RepL L (n , u)
+    → (L ⁺) (l , u)
+  go `R ⟨ t ⟩ ys = go F t ys
+  go `1 ! ys = ys
+  go (S `+ T) (inl s) ys = go S s ys
+  go (S `+ T) (inr t) ys = go T t ys
+  go (S `^ T) (s ‘ p ‘ t) ys = go S s (p ∷ go T t ys)
+
+flatten : ∀ {P} {L : Rel P} {F} → [ μ≤ˢᵒ F L ˙→ (L ⁺) ]
+flatten t = flapp t []
