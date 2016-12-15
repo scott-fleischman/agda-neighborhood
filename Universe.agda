@@ -84,8 +84,15 @@ record Monoid (X : Set) : Set where
   crush = traverse {B = 𝟘} monApp
 open Monoid
 
-_∘_ : {A B C : Set} → (B → C) → (A → B) → A → C
+_∘_ : {A : Set}
+  → {B : A → Set}
+  → {C : (a : A) → B a → Set}
+  → (f : {a : A} → (b : B a) → C a b)
+  → (g : (a : A) → B a)
+  → (a : A)
+  → C a (g a)
 (f ∘ g) x = f (g x)
+infixr 3 _∘_
 
 compMon : ∀ {X} → Monoid (X → X)
 compMon = record { neutral = id ; combine = λ f g → f ∘ g }
@@ -446,3 +453,13 @@ module 23Tree
   ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | ge with ins23 h (y °) rt
   ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | ge | inl rt' = inl (no₃ lt p mt q rt')
   ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | ge | inr (rlt ‘ r ‘ rrt) = inr (no₂ lt p mt ‘ q ‘ no₂ rlt r rrt)
+
+  Tree23 = Σ ℕ λ h → (L ²³) h (⊥ , ⊤)
+
+  insert : P → Tree23 → Tree23
+  insert p (h , t) with ins23 h (p °) t
+  … | inl t' = h , t'
+  … | inr (lt ‘ r ‘ rt) = suc h , no₂ lt r rt
+
+  sort : ∀ {F} → μᴶᴶ F P → (L ⁺) (⊥ , ⊤)
+  sort = flatten ∘ Σ.snd ∘ foldr insert (0 , no₀)
