@@ -432,9 +432,17 @@ module 23Tree
       → (L ²³) h (Σ.fst lu , # p)
       × (L ²³) h (# p , Σ.snd lu)
   ins23 zero (y °) ⟨ ! ⟩ = inr (⟨ ! ⟩ ‘ y ‘ ⟨ ! ⟩)
-  ins23 (suc x) (y °) ⟨ lt ‘ p ‘ rest ⟩ with owoto y p
-  ins23 (suc x) (y °) ⟨ lt ‘ p ‘ rest ⟩ | le = {!!}
-  ins23 (suc x) (y °) (no₂ lt p rt) | ge = {!!}
-  ins23 (suc x) (y °) (no₃ lt p mt q rt) | ge with owoto y q
-  ins23 (suc x) (y °) (no₃ lt p mt q rt) | ge | le = {!!}
-  ins23 (suc x) (y °) (no₃ lt p mt q rt) | ge | ge = {!!}
+  ins23 (suc h) (y °) ⟨ lt ‘ p ‘ rest ⟩ with owoto y p
+  ins23 (suc h) (y °) ⟨ lt ‘ p ‘ rest ⟩ | le with ins23 h (y °) lt
+  ins23 (suc h) (y °) ⟨ lt ‘ p ‘ rest ⟩ | le | inl lt' = inl ⟨ lt' ‘ p ‘ rest ⟩
+  ins23 (suc h) (y °) (no₂ lt p rt) | le | inr (llt ‘ r ‘ lrt) = inl (no₃ llt r lrt p rt)
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | le | inr (llt ‘ r ‘ lrt) = inr (no₂ llt r lrt ‘ p ‘ no₂ mt q rt)
+  ins23 (suc h) (y °) (no₂ lt p rt) | ge with ins23 h (y °) rt
+  ins23 (suc h) (y °) (no₂ lt p rt) | ge | rt' = inl ⟨ (lt ‘ p ‘ rt' ) ⟩
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge with owoto y q
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | le with ins23 h (y °) mt
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | le | inl mt' = inl (no₃ lt p mt' q rt)
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | le | inr (mlt ‘ r ‘ mrt) = inr (no₂ lt p mlt ‘ r ‘ no₂ mrt q rt)
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | ge with ins23 h (y °) rt
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | ge | inl rt' = inl (no₃ lt p mt q rt')
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | ge | inr (rlt ‘ r ‘ rrt) = inr (no₂ lt p mt ‘ q ‘ no₂ rlt r rrt)
