@@ -168,6 +168,9 @@ infixr 3 _⇒_
 magic : {X : Set} -> 𝟘 ⇒ X
 magic {{()}}
 
+_∴_ : ∀ {P T} → ⌈ P ⌉ᵖ → (P ⇒ T) → T
+! ∴ t = t
+
 ⌈_⌉ʳ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
 ⌈ L ⌉ʳ xy = ⌈ <⊥ L ⊤>ᶠ xy ⌉ᵖ
 
@@ -463,3 +466,55 @@ module 23Tree
 
   sort : ∀ {F} → μᴶᴶ F P → (L ⁺) (⊥ , ⊤)
   sort = flatten ∘ Σ.snd ∘ foldr insert (0 , no₀)
+
+  data _≡_ {X : Set} (x : X) : X → Set where
+    ⟨⟩ : x ≡ x
+  infix 6 _≡_
+
+  module Delete23
+    (trans : ∀ {x} y {z} → L (x , y) ⇒ L (y , z) ⇒ ⌈ L (x , z) ⌉ᵖ)
+    (eq? : (x y : P) → x ≡ y + (x ≡ y → 𝟘))
+    where
+
+    pattern via p = p , ! , !
+
+    trans⊥⊤ : [ (⌈ L ⌉ʳ ˙^ ⌈ L ⌉ʳ) ˙→ ⌈ L ⌉ʳ ]
+    trans⊥⊤ {_ , ⊤} _ = !
+    trans⊥⊤ {⊥ , ⊥} _ = !
+    trans⊥⊤ {⊥ , # u} _ = !
+    trans⊥⊤ {⊤ , _} (via _) = magic
+    trans⊥⊤ {# l , # u} (via p) = trans p ∴ !
+    trans⊥⊤ {# l , ⊥} (via _) = magic
+
+    Short²³ : ℕ → Rel <⊥ P ⊤>ᵈ
+    Short²³ zero lu = 𝟘
+    Short²³ (suc h) lu = (L ²³) h lu
+
+    Del²³ : ℕ → Rel <⊥ P ⊤>ᵈ
+    Del²³ h lu = Short²³ h lu + (L ²³) h lu
+
+    Re2 : ℕ → Rel <⊥ P ⊤>ᵈ
+    Re2 h = Short²³ (suc h) ˙+ ((L ²³) h ˙^ (L ²³) h)
+
+    d2t : ∀ {h} → [ (Del²³ h ˙^ (L ²³) h) ˙→ Re2 h ]
+    d2t {h} (inr lp ‘ p ‘ pu) = inr (lp ‘ p ‘ pu)
+    d2t {zero} (inl () ‘ p ‘ pu)
+    d2t {suc h} (inl lp ‘ p ‘ no₂ pq q qu) = inl (no₃ lp p pq q qu)
+    d2t {suc h} (inl lp ‘ p ‘ no₃ pq q qr r ru) = inr (no₂ lp p pq ‘ q ‘ no₂ qr r ru)
+
+    t2d : ∀ {h} → [ ((L ²³) h ˙^ Del²³ h) ˙→ Re2 h ]
+    t2d {h} (lp ‘ p ‘ inr pu) = inr (lp ‘ p ‘ pu)
+    t2d {zero} (lp ‘ p ‘ inl ())
+    t2d {suc h} (no₂ ln n np ‘ p ‘ inl pu) = inl (no₃ ln n np p pu)
+    t2d {suc h} (no₃ lm m mn n np ‘ p ‘ inl pu) = inr (no₂ lm m mn ‘ n ‘ no₂ np p pu)
+
+    rd : ∀ {h} → [ Re2 h ˙→ Del²³ (suc h) ]
+    rd (inl s) = inl s
+    rd (inr (lp ‘ p ‘ pu)) = inr (no₂ lp p pu)
+
+    extr : ∀ {h} → [ (L ²³) (suc h) ˙→ (Del²³ (suc h) ˙^ <⊥ L ⊤>ᶠ) ]
+    extr = {!!}
+
+    del²³ : ∀ {h} → [ (L •) ˙→ (L ²³) h ˙→ Del²³ h ]
+    del²³ = {!!}
+ 
