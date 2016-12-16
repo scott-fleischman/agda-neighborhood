@@ -530,6 +530,14 @@ module 23Tree
     extr {suc h} (no₃ lp p pq q qu) with extr qu
     … | qr Δ/ r = t3r (lp ‘ p ‘ t2d (pq ‘ q ‘ qr)) Δ/ r
 
+    delp : ∀ {h} → [ ((L ²³) h ˙^ (L ²³) h) ˙→ Re2 h ]
+    delp {zero} {lu} (no₀ ‘ p ‘ no₀) = trans⊥⊤ {lu} (via p) ∴ inl no₀
+    delp {suc h} (lp ‘ p ‘ pu) with extr lp
+    … | lr Δ/ r = d2t (lr ‘ r ‘ weak pu) where
+      weak : ∀ {h u} → (L ²³) h (# p , u) → (L ²³) h (# r , u)
+      weak {zero} {u} no₀ = trans⊥⊤ {# r , u} (via p) ∴ no₀
+      weak {suc h} ⟨ pq ‘ q ‘ qu ⟩ = ⟨ (weak pq ‘ q ‘ qu) ⟩
+
     del²³ : ∀ {h} → [ (L •) ˙→ (L ²³) h ˙→ Del²³ h ]
     del²³ = {!!}
  
