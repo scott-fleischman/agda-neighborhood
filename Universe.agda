@@ -512,8 +512,23 @@ module 23Tree
     rd (inl s) = inl s
     rd (inr (lp ‘ p ‘ pu)) = inr (no₂ lp p pu)
 
-    extr : ∀ {h} → [ (L ²³) (suc h) ˙→ (Del²³ (suc h) ˙^ <⊥ L ⊤>ᶠ) ]
-    extr = {!!}
+    r3t : ∀ {h} → [ (Re2 h ˙^ (L ²³) h) ˙→ Del²³ (suc h) ]
+    r3t (inr (lm ‘ m ‘ mp) ‘ p ‘ pu) = inr (no₃ lm m mp p pu)
+    r3t (inl lp ‘ p ‘ pu) = inr (no₂ lp p pu)
+
+    t3r : ∀ {h} → [ ((L ²³) h ˙^ Re2 h) ˙→ Del²³ (suc h) ]
+    t3r (lp ‘ p ‘ inr (pq ‘ q ‘ qu)) = inr (no₃ lp p pq q qu)
+    t3r (lp ‘ p ‘ inl pu) = inr (no₂ lp p pu)
+
+    pattern _Δ/_ lr r = r , lr , !
+
+    extr : ∀ {h} → [ (L ²³) (suc h) ˙→ (Del²³ (suc h) ˙^ ⌈ L ⌉ʳ) ]
+    extr {zero} (no₂ lr r no₀) = inl lr Δ/ r
+    extr {zero} (no₃ lp p pr r no₀) = inr (no₂ lp p pr) Δ/ r
+    extr {suc h} (no₂ lp p pu) with extr pu
+    … | pr Δ/ r = rd (t2d (lp ‘ p ‘ pr)) Δ/ r
+    extr {suc h} (no₃ lp p pq q qu) with extr qu
+    … | qr Δ/ r = t3r (lp ‘ p ‘ t2d (pq ‘ q ‘ qr)) Δ/ r
 
     del²³ : ∀ {h} → [ (L •) ˙→ (L ²³) h ˙→ Del²³ h ]
     del²³ = {!!}
