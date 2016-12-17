@@ -26,12 +26,12 @@ extend R (value x) (value y) = R x y
 extend R ⊥ (value y) = 𝟙
 extend R _ ⊥ = 𝟘
 
-record _^_ {P : Set} (S T : Relation (Extend P)) (lower upper : Extend P) : Set where
-  constructor _,_,_
+record PivotedPair {P : Set} (S T : Relation (Extend P)) (lower upper : Extend P) : Set where
+  constructor pivoted-pair
   field
     pivot : P
-    lowerR : S lower (value pivot)
-    upperR : T (value pivot) upper
+    fst : S lower (value pivot)
+    snd : T (value pivot) upper
 
 module Order
   (P : Set)
@@ -41,20 +41,20 @@ module Order
 
   data BST (lower upper : Extend P) : Set where
     leaf : (r : extend R lower upper) → BST lower upper
-    node : (BST ^ BST) lower upper → BST lower upper
+    node : PivotedPair BST BST lower upper → BST lower upper
 
   insert : {lower upper : Extend P}
-    → (extend R ^ extend R) lower upper
+    → PivotedPair (extend R) (extend R) lower upper
     → BST lower upper
     → BST lower upper
-  insert (y , pl , pu) (leaf _) = node (y , leaf pl , leaf pu)
-  insert (y , pl , pu) (node (p , left , right)) with total y p
-  … | xRy yRp = node (p , insert (y , pl , yRp) left , right)
-  … | yRx pRy = node (p , left , insert (y , pRy , pu) right)
+  insert (pivoted-pair y pl pu) (leaf _) = node (pivoted-pair y (leaf pl) (leaf pu))
+  insert (pivoted-pair y pl pu) (node (pivoted-pair p left right)) with total y p
+  … | xRy yRp = node (pivoted-pair p (insert (pivoted-pair y pl yRp) left) right)
+  … | yRx pRy = node (pivoted-pair p left (insert (pivoted-pair y pRy pu) right))
 
   rotR : {lower upper : Extend P} → BST lower upper → BST lower upper
-  rotR (node (p , node (m , lt , mt) , rt))
-     = node (m , lt , node (p , mt , rt))
+  rotR (node (pivoted-pair p (node (pivoted-pair m lt mt)) rt))
+     = node (pivoted-pair m lt (node (pivoted-pair p mt rt)))
   {-# CATCHALL #-}
   rotR t = t
 
@@ -87,16 +87,16 @@ module Test where
   ex1 = leaf _
 
   ex2 : BST (value 9) (value 9)
-  ex2 = node (9 , leaf (9 prove≤ 9) , leaf (9 prove≤ 9))
+  ex2 = node (pivoted-pair 9 (leaf (9 prove≤ 9)) (leaf (9 prove≤ 9)))
 
   ex3 : BST ⊥ ⊤
-  ex3 = node (9 , node (8 , leaf _ , leaf (8 prove≤ 9)) , leaf _)
+  ex3 = node (pivoted-pair 9 (node (pivoted-pair 8 (leaf _) (leaf (8 prove≤ 9)))) (leaf _))
 
   ex4 : BST ⊥ ⊤
-  ex4 = insert (9 , _ , _) (leaf _)
+  ex4 = insert (pivoted-pair 9 _ _) (leaf _)
 
   ex5 : BST ⊥ ⊤
-  ex5 = insert (9 , _ , _) (insert (6 , _ , _) (insert (12 , _ , _) (leaf _)))
+  ex5 = insert (pivoted-pair 9 _ _) (insert (pivoted-pair 6 _ _) (insert (pivoted-pair 12 _ _) (leaf _)))
 
   ex6 : BST ⊥ (value 100)
-  ex6 = insert (9 , _ , (9 prove≤ 100)) (insert (6 , _ , (6 prove≤ 100)) (insert (12 , _ , (12 prove≤ 100)) (leaf _)))
+  ex6 = insert (pivoted-pair 9 _ (9 prove≤ 100)) (insert (pivoted-pair 6 _ (6 prove≤ 100)) (insert (pivoted-pair 12 _ (12 prove≤ 100)) (leaf _)))
