@@ -539,5 +539,16 @@ module 23Tree
       weak {suc h} ⟨ pq ‘ q ‘ qu ⟩ = ⟨ (weak pq ‘ q ‘ qu) ⟩
 
     del²³ : ∀ {h} → [ (L •) ˙→ (L ²³) h ˙→ Del²³ h ]
-    del²³ = {!!}
- 
+    del²³ {zero} _ no₀ = inr no₀
+    del²³ {suc h} (y °) ⟨ lp ‘ p ‘ pu ⟩ with eq? y p
+    del²³ {suc h} (.p °) (no₂ lp p pu) | inl ⟨⟩ = rd (delp (lp ‘ p ‘ pu))
+    del²³ {suc h} (.p °) (no₃ lp p pq q qu) | inl ⟨⟩ = r3t (delp (lp ‘ p ‘ pq) ‘ q ‘ qu)
+    del²³ {suc h} (y °) ⟨ lp ‘ p ‘ pu ⟩ | inr _ with owoto y p
+    del²³ {suc h} (y °) (no₂ lp p pu) | inr _ | le = rd (d2t (del²³ (y °) lp ‘ p ‘ pu))
+    del²³ {suc h} (y °) (no₂ lp p pu) | inr _ | ge = rd (t2d (lp ‘ p ‘ del²³ (y °) pu))
+    del²³ {suc h} (y °) (no₃ lp p pq q qu) | inr _ | le = r3t (d2t (del²³ (y °) lp ‘ p ‘ pq) ‘ q ‘ qu)
+    del²³ {suc h} (y °) (no₃ lp p pq q qu) | inr _ | ge with eq? y q
+    del²³ {suc h} (.q °) (no₃ lp p pq q qu) | inr _ | ge | inl ⟨⟩ = t3r (lp ‘ p ‘ delp (pq ‘ q ‘ qu))
+    del²³ {suc h} (y °) (no₃ lp p pq q qu) | inr _ | ge | inr _ with owoto y q
+    del²³ {suc h} (y °) (no₃ lp p pq q qu) | inr _ | ge | inr _ | le = r3t (t2d (lp ‘ p ‘ del²³ (y °) pq) ‘ q ‘ qu)
+    del²³ {suc h} (y °) (no₃ lp p pq q qu) | inr _ | ge | inr _ | ge = t3r (lp ‘ p ‘ t2d (pq ‘ q ‘ del²³ (y °) qu))
