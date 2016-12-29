@@ -50,9 +50,9 @@ module BinarySearchTreeBad
   valid leaf = yes empty
   valid (node lt p rt) with valid lt | valid rt
   valid (node lt p rt) | yes empty | yes empty = yes empty
-  valid (node lt p rt) | yes empty | yes (l - u) = le p l ?> yes (p - l)
+  valid (node lt p rt) | yes empty | yes (l - u) = le p l ?> yes (p - u)
   valid (node lt p rt) | yes (l - u) | yes empty = le u p ?> yes (l - p)
-  valid (node lt p rt) | yes (a - b) | yes (c - d) = le b p ?> le p c ?> yes (a - d)
+  valid (node lt p rt) | yes (l - u0) | yes (l0 - u) = le u0 p ?> le p l0 ?> yes (l - u)
   valid (node lt p rt) | yes x | no = no
   valid (node lt p rt) | no | y = no
 
@@ -68,10 +68,10 @@ module BinarySearchTreeBad
   rightOK y (l - u) = le y l
 
   nodeRange : STRange -> P -> STRange -> STRange
-  nodeRange empty p empty = p - p
-  nodeRange empty p (l - u) = p - u
-  nodeRange (l - u) p empty = l - p
-  nodeRange (l - _) p (_ - u) = l - u
+  nodeRange empty y empty = y - y
+  nodeRange empty y (l - u) = y - u
+  nodeRange (l - u) y empty = l - y
+  nodeRange (l - _) y (_ - u) = l - u
 
   data BST : STRange -> Set where
     leaf : BST empty
@@ -80,7 +80,7 @@ module BinarySearchTreeBad
       -> So (leftOK l p)
       => So (rightOK p r)
       => BST (nodeRange l p r)
-
+      
   insertS : P -> Tree -> Tree
   insertS y leaf = node leaf y leaf
   insertS y (node lt p rt) =
@@ -95,7 +95,8 @@ module BinarySearchTreeBad
     else if le u y then l - y
     else l - u
 
-  insert : forall {r} y -> BST r -> BST (oRange r y)
+  insert : forall {r} y
+    -> BST r -> BST (oRange r y)
   insert y leaf = node leaf y leaf
   insert y (node lt p rt) =
     if le y p
