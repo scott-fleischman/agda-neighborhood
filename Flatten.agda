@@ -105,46 +105,88 @@ data OListx : Set where
 
 -- try 1 (fail -- needs transitivity)
 
-append : (l u : Bound)
-  -> (p : Nat)
-  -> OList l (lift p)
-  -> OList (lift p) u
-  -> OList l u
-append l u p (nil l<=p) ys = {!!}
-{-
-Goal: OList l u
-————————————————————————————————————————————————————————————
-ys   : OList (lift p) u
-l<=p : l <B= lift p
--}
-append l u p (add x l<=x xs) ys = add x l<=x (append (lift x) u p xs ys)
+module Try1 where
+  append : (l u : Bound)
+    -> (p : Nat)
+    -> OList l (lift p)
+    -> OList (lift p) u
+    -> OList l u
+  append l u p (nil l<=p) ys = {!!}
+  {-
+  Goal: OList l u
+  ————————————————————————————————————————————————————————————
+  ys   : OList (lift p) u
+  l<=p : l <B= lift p
+  -}
+  append l u p (add x l<=x xs) ys = add x l<=x (append (lift x) u p xs ys)
 
-
--- try 2 (success but quadratic)
-
-sandwich : (l u : Bound)
-  -> (p : Nat)
-  -> OList l (lift p)
-  -> OList (lift p) u
-  -> OList l u
-sandwich l u p (nil pf) rl = add p pf rl
-sandwich l u p (add x pf xs) ys = add x pf (sandwich (lift x) u p xs ys)
-
-flatten : (l u : Bound) -> BST l u -> OList l u
-flatten l u (leaf l<=u) = nil l<=u
-flatten l u (node x lt rt) = sandwich l u x (flatten l (lift x) lt) (flatten (lift x) u rt)
-
-flattenx : BSTx -> OListx
-flattenx (bstx tree) = olistx (flatten bottom top tree)
 
 fromList : List -> BSTx
 fromList xs = foldr-list BSTx insertx xs (bstx (leaf unit))
 
-sort : List -> OListx
-sort xs = flattenx (fromList xs)
-
 numbers : List
 numbers = 86 :: 5 :: 57 :: 76 :: 73 :: 18 :: 42 :: 16 :: 22 :: 26 :: nil
 
+-- try 2 (success but quadratic)
+
+module Try2 where
+  sandwich : (l u : Bound)
+    -> (p : Nat)
+    -> OList l (lift p)
+    -> OList (lift p) u
+    -> OList l u
+  sandwich l u p (nil pf) rl = add p pf rl
+  sandwich l u p (add x pf xs) ys = add x pf (sandwich (lift x) u p xs ys)
+
+  flatten : (l u : Bound) -> BST l u -> OList l u
+  flatten l u (leaf l<=u) = nil l<=u
+  flatten l u (node x lt rt) = sandwich l u x (flatten l (lift x) lt) (flatten (lift x) u rt)
+
+  flattenx : BSTx -> OListx
+  flattenx (bstx tree) = olistx (flatten bottom top tree)
+
+  sort : List -> OListx
+  sort xs = flattenx (fromList xs)
+
 -- Section 13
 
+module Try3 where
+  flapp : (l u : Bound)
+    -> (p : Nat)
+    -> BST l (lift p)
+    -> OList (lift p) u
+    -> OList l u
+  flapp l u p (leaf lp) ys = add p lp ys
+  flapp l u p (node p' tly typ) ys = flapp l u p' tly (flapp (lift p') u p typ ys)
+
+  flatten : (l u : Bound)
+    -> BST l u
+    -> OList l u
+  flatten l u (leaf lu) = nil lu
+  flatten l u (node p lt rt) = flapp l u p lt (flatten (lift p) u rt)
+
+  flattenx : BSTx -> OListx
+  flattenx (bstx tree) = olistx (flatten bottom top tree)
+
+  sort : List -> OListx
+  sort xs = flattenx (fromList xs)
+
+
+module Try4 where
+  flapp : (l n u : Bound)
+    -> BST l n
+    -> ((m : Bound) -> m <B= n -> OList m u)
+    -> OList l u
+  flapp l n u (leaf ln) f = f l ln
+  flapp l n u (node p lt rt) f = flapp l (lift p) u lt (λ m z → add p z (flapp (lift p) n u rt f))
+
+  flatten : (l u : Bound)
+    -> BST l u
+    -> OList l u
+  flatten l u t = flapp l u u t (λ m → nil)
+
+  flattenx : BSTx -> OListx
+  flattenx (bstx tree) = olistx (flatten bottom top tree)
+
+  sort : List -> OListx
+  sort xs = flattenx (fromList xs)
