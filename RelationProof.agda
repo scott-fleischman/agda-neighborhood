@@ -92,6 +92,9 @@ module Test where
   ex1 : BST (⊥ , ⊤)
   ex1 = leaf _
 
+  ex2a : BST (⊥ , ⊤)
+  ex2a = node (pivoted-pair 9 (leaf {!!}) (leaf {!!}))
+
   ex2 : BST (value 9 , value 9)
   ex2 = node (pivoted-pair 9 (leaf (9 prove≤ 9)) (leaf (9 prove≤ 9)))
 

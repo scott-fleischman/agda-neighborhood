@@ -106,17 +106,16 @@ data OListx : Set where
 -- try 1 (fail -- needs transitivity)
 
 module Try1 where
-  append : (l u : Bound)
-    -> (p : Nat)
-    -> OList l (lift p)
-    -> OList (lift p) u
+  append : (l p u : Bound)
+    -> OList l p
+    -> OList p u
     -> OList l u
   append l u p (nil l<=p) ys = {!!}
   {-
-  Goal: OList l u
+  Goal: OList l p
   ————————————————————————————————————————————————————————————
-  ys   : OList (lift p) u
-  l<=p : l <B= lift p
+  ys   : OList u p
+  l<=p : l <B= u
   -}
   append l u p (add x l<=x xs) ys = add x l<=x (append (lift x) u p xs ys)
 
@@ -125,7 +124,7 @@ fromList : List -> BSTx
 fromList xs = foldr-list BSTx insertx xs (bstx (leaf unit))
 
 numbers : List
-numbers = 86 :: 5 :: 57 :: 76 :: 73 :: 18 :: 42 :: 16 :: 22 :: 26 :: nil
+numbers = 91 :: 10 :: 73 :: 33 :: 61 :: 47 :: 78 :: 51 :: 86 :: 43 :: 30 :: 83 :: 16 :: 88 ::  1 :: 94 :: 69 ::  2 :: 72 :: 56 ::  9 :: 46 :: 58 ::  8 ::  4 :: 85 :: 21 :: 13 :: 18 :: 89 :: 55 :: 42 :: 62 :: 37 :: 45 :: 36 :: 100 :: 35 :: 96 :: 64 ::  5 :: 77 :: 31 ::  6 :: 26 :: 41 :: 24 :: 82 :: 22 :: 81 :: 84 :: 70 :: 44 :: 65 :: 75 :: 25 :: 28 :: 97 :: 79 :: 23 :: 53 :: 54 :: 19 :: 66 :: 99 ::  7 :: 48 :: 68 :: 98 :: 20 :: 76 :: 59 :: 90 ::  3 :: 95 :: 39 :: 63 :: 32 :: 74 :: 49 :: 11 :: 92 :: 17 :: 40 :: 29 :: 93 :: 67 :: 57 :: 27 :: 34 :: 12 :: 14 :: 87 :: 80 :: 71 :: 52 :: 15 :: 50 :: 60 :: 38 :: nil
 
 -- try 2 (success but quadratic)
 
@@ -135,8 +134,8 @@ module Try2 where
     -> OList l (lift p)
     -> OList (lift p) u
     -> OList l u
-  sandwich l u p (nil pf) rl = add p pf rl
-  sandwich l u p (add x pf xs) ys = add x pf (sandwich (lift x) u p xs ys)
+  sandwich l u p (nil lp) ys = add p lp ys
+  sandwich l u p (add x lx xs) ys = add x lx (sandwich (lift x) u p xs ys)
 
   flatten : (l u : Bound) -> BST l u -> OList l u
   flatten l u (leaf l<=u) = nil l<=u
@@ -178,7 +177,7 @@ module Try4 where
     -> ((m : Bound) -> m <B= n -> OList m u)
     -> OList l u
   flapp l n u (leaf ln) f = f l ln
-  flapp l n u (node p lt rt) f = flapp l (lift p) u lt (λ m z → add p z (flapp (lift p) n u rt f))
+  flapp l n u (node p lt rt) f = flapp l (lift p) u lt (λ m x → add p x (flapp (lift p) n u rt f))
 
   flatten : (l u : Bound)
     -> BST l u

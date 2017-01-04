@@ -1,0 +1,554 @@
+module UniverseProof where
+
+data 𝟘 : Set where
+record 𝟙 : Set where
+  constructor <>
+
+record Σ (A : Set) (B : A → Set) : Set where
+  constructor _,_
+  field
+    fst : A
+    snd : B fst
+
+infixr 5 _×_ _,_ _`×_ _˙×_
+infixr 4 _+_ _`+_ _˙+_
+
+_×_ : (A B : Set) → Set
+A × B = Σ A (λ _ → B)
+
+data _+_ (A B : Set) : Set where
+  inl : A → A + B
+  inr : B → A + B
+
+data JJ : Set where
+  `R `P `1 : JJ
+  _`+_ _`×_ : JJ → JJ → JJ
+
+⟦_⟧ᴶᴶ : JJ → Set → Set → Set
+⟦ `R ⟧ᴶᴶ R P = R
+⟦ `P ⟧ᴶᴶ R P = P
+⟦ `1 ⟧ᴶᴶ R P = 𝟙
+⟦ S `+ T ⟧ᴶᴶ R P = ⟦ S ⟧ᴶᴶ R P + ⟦ T ⟧ᴶᴶ R P
+⟦ S `× T ⟧ᴶᴶ R P = ⟦ S ⟧ᴶᴶ R P × ⟦ T ⟧ᴶᴶ R P
+
+data μᴶᴶ (F : JJ) (P : Set) : Set where
+  ⟨_⟩ : ⟦ F ⟧ᴶᴶ (μᴶᴶ F P) P → μᴶᴶ F P
+
+record Applicative (H : Set → Set) : Set₁ where
+  field
+    pure : ∀ {X} → X → H X
+    ap : ∀ {S T} → H (S → T) → H S → H T
+open Applicative
+
+traverse
+  : ∀ {H F A B}
+  → Applicative H
+  → (A → H B)
+  → μᴶᴶ F A
+  → H (μᴶᴶ F B)
+traverse {H} {F} {A} {B} AH h t = go `R t
+  where
+  pu = pure AH
+  _⊛_ = ap AH
+  infixl 5 _⊛_
+
+  go : ∀ G
+    → ⟦ G ⟧ᴶᴶ (μᴶᴶ F A) A
+    → H (⟦ G ⟧ᴶᴶ (μᴶᴶ F B) B)
+  go `R ⟨ t ⟩ = pu ⟨_⟩ ⊛ go F t
+  go `P a = h a
+  go `1 <> = pu <>
+  go (S `+ T) (inl s) = pu inl ⊛ go S s
+  go (S `+ T) (inr t) = pu inr ⊛ go T t
+  go (S `× T) (s , t) = pu _,_ ⊛ go S s ⊛ go T t
+
+id : {X : Set} → X → X
+id x = x
+
+idApp : Applicative (λ X → X)
+idApp = record { pure = id; ap = id }
+
+map : ∀ {F A B}
+  → (A → B)
+  → μᴶᴶ F A
+  → μᴶᴶ F B
+map = traverse idApp
+
+record Monoid (X : Set) : Set where
+  field
+    neutral : X
+    combine : X → X → X
+  monApp : Applicative (λ _ → X)
+  monApp = record { pure = λ _ → neutral ; ap = combine }
+  crush : ∀ {P F} → (P → X) → μᴶᴶ F P → X
+  crush = traverse {B = 𝟘} monApp
+open Monoid
+
+_∘_ : {A : Set}
+  → {B : A → Set}
+  → {C : (a : A) → B a → Set}
+  → (f : {a : A} → (b : B a) → C a b)
+  → (g : (a : A) → B a)
+  → (a : A)
+  → C a (g a)
+(f ∘ g) x = f (g x)
+infixr 3 _∘_
+
+compMon : ∀ {X} → Monoid (X → X)
+compMon = record { neutral = id ; combine = λ f g → f ∘ g }
+
+foldr : ∀ {F A B}
+  → (A → B → B)
+  → B
+  → μᴶᴶ F A
+  → B
+foldr f b t = crush compMon f t b
+
+
+-- 10. The Simple Orderable Subuniverse of JJ
+
+data SO : Set where
+  `R `1 : SO
+  _`+_ _`^_ : SO → SO → SO
+infixr 5 _`^_
+
+⟦_⟧ˢᵒ : SO → JJ
+⟦ `R ⟧ˢᵒ = `R
+⟦ `1 ⟧ˢᵒ = `1
+⟦ S `+ T ⟧ˢᵒ = ⟦ S ⟧ˢᵒ `+ ⟦ T ⟧ˢᵒ
+⟦ S `^ T ⟧ˢᵒ = ⟦ S ⟧ˢᵒ `× `P `× ⟦ T ⟧ˢᵒ
+
+μˢᵒ : SO → Set → Set
+μˢᵒ F P = μᴶᴶ ⟦ F ⟧ˢᵒ P
+
+`Listˢᵒ : SO
+`Listˢᵒ = `1 `+ (`1 `^ `R)
+`Treeˢᵒ : SO
+`Treeˢᵒ = `1 `+ (`R `^ `R)
+`Intervalˢᵒ : SO
+`Intervalˢᵒ = `1 `^ `1
+
+treeˢᵒ
+  : ∀ {P F}
+  → μˢᵒ F P
+  → μˢᵒ `Treeˢᵒ P
+treeˢᵒ {P} {F} ⟨ f ⟩ = go F f
+  where
+  go : ∀ G
+    → ⟦ ⟦ G ⟧ˢᵒ ⟧ᴶᴶ (μˢᵒ F P) P
+    → μˢᵒ `Treeˢᵒ P
+  go `R x = treeˢᵒ x
+  go `1 <> = ⟨ inl <> ⟩
+  go (S `+ T) (inl s) = go S s
+  go (S `+ T) (inr t) = go T t
+  go (S `^ T) (s , p , t) = ⟨ inr (go S s , p , go T t) ⟩
+
+data <⊥_⊤>ᵈ (P : Set) : Set where
+  ⊤ : <⊥ P ⊤>ᵈ
+  # : P → <⊥ P ⊤>ᵈ
+  ⊥ : <⊥ P ⊤>ᵈ
+
+Rel : Set → Set₁
+Rel P = P × P → Set
+
+<⊥_⊤>ᶠ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+<⊥ L ⊤>ᶠ (_ , ⊤) = 𝟙
+<⊥ L ⊤>ᶠ (# x , # y) = L (x , y)
+<⊥ L ⊤>ᶠ (⊥ , _) = 𝟙
+<⊥ L ⊤>ᶠ (_ , _) = 𝟘
+
+record ⌈_⌉ᵖ (P : Set) : Set where
+  constructor !
+  field {{proof}} : P
+
+_⇒_ : Set → Set → Set
+P ⇒ T = {{p : P}} → T
+infixr 3 _⇒_
+
+magic : {X : Set} -> 𝟘 ⇒ X
+magic {{()}}
+
+_∴_ : ∀ {P T} → ⌈ P ⌉ᵖ → (P ⇒ T) → T
+! ∴ t = t
+
+⌈_⌉ʳ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+⌈ L ⌉ʳ xy = ⌈ <⊥ L ⊤>ᶠ xy ⌉ᵖ
+
+˙0 : {I : Set} → I → Set
+˙0 i = 𝟘
+˙1 : {I : Set} → I → Set
+˙1 i = 𝟙
+
+_˙+_ : {I : Set} → (f g : I → Set) → I → Set
+(S ˙+ T) i = S i + T i
+_˙×_ : {I : Set} → (f g : I → Set) → I → Set
+(S ˙× T) i = S i × T i
+_˙→_ : {I : Set} → (f g : I → Set) → I → Set
+(S ˙→ T) i = S i → T i
+infixr 2 _˙→_
+
+[_] : {I : Set} → (I → Set) → Set
+[ F ] = ∀ {i} → F i
+
+_˙^_ : ∀ {P} → (S T : Rel <⊥ P ⊤>ᵈ) → Rel <⊥ P ⊤>ᵈ
+_˙^_ {P} S T (l , u) = Σ P λ p → S (l , # p) × T (# p , u)
+
+pattern _‘_‘_ s p t = p , s , t
+infixr 5 _‘_‘_
+
+⟦_⟧≤ˢᵒ : SO → ∀ {P} → Rel <⊥ P ⊤>ᵈ → Rel P → Rel <⊥ P ⊤>ᵈ
+⟦ `R ⟧≤ˢᵒ R L = R
+⟦ `1 ⟧≤ˢᵒ R L = ⌈ L ⌉ʳ
+⟦ S `+ T ⟧≤ˢᵒ R L = ⟦ S ⟧≤ˢᵒ R L ˙+ ⟦ T ⟧≤ˢᵒ R L
+⟦ S `^ T ⟧≤ˢᵒ R L = ⟦ S ⟧≤ˢᵒ R L ˙^ ⟦ T ⟧≤ˢᵒ R L
+
+data μ≤ˢᵒ (F : SO) {P : Set} (L : Rel P) (lu : <⊥ P ⊤>ᵈ × <⊥ P ⊤>ᵈ) : Set where
+  ⟨_⟩ : ⟦ F ⟧≤ˢᵒ (μ≤ˢᵒ F L) L lu → μ≤ˢᵒ F L lu
+
+_Δˢᵒ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+L Δˢᵒ = μ≤ˢᵒ `Treeˢᵒ L
+pattern leaf≤ˢᵒ = ⟨ inl ! ⟩
+pattern node≤ˢᵒ lp p pu = ⟨ inr (lp ‘ p ‘ pu) ⟩
+
+_•ˢᵒ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+L •ˢᵒ = μ≤ˢᵒ `Intervalˢᵒ L
+
+pattern _°ˢᵒ p = ⟨ (p , ! , !) ⟩
+
+tree≤ˢᵒ : ∀ {P F} {L : Rel P} → [ μ≤ˢᵒ F L ˙→ L Δˢᵒ ]
+tree≤ˢᵒ {P} {F} {L} ⟨ f ⟩ = go F f where
+  go : ∀ G → [ ⟦ G ⟧≤ˢᵒ (μ≤ˢᵒ F L) L ˙→ L Δˢᵒ ]
+  go `R x = tree≤ˢᵒ x
+  go `1 ! = leaf≤ˢᵒ
+  go (S `+ T) (inl s) = go S s
+  go (S `+ T) (inr t) = go T t
+  go (S `^ T) (s ‘ p ‘ t) = node≤ˢᵒ (go S s) p (go T t)
+
+OWOTO : ∀ {P} (L : Rel P) -> Rel P
+OWOTO L (x , y) = ⌈ L (x , y) ⌉ᵖ + ⌈ L (y , x) ⌉ᵖ
+
+module BSTGen {P : Set} (L : Rel P) (owoto : ∀ x y -> OWOTO L (x , y)) where
+
+  insert : [ L •ˢᵒ ˙→ L Δˢᵒ ˙→ L Δˢᵒ ]
+  insert (y °ˢᵒ) leaf≤ˢᵒ = node≤ˢᵒ leaf≤ˢᵒ y leaf≤ˢᵒ
+  insert (y °ˢᵒ) (node≤ˢᵒ lt p rt) with owoto y p
+  … | inl ! = node≤ˢᵒ (insert (y °ˢᵒ) lt) p rt
+  … | inr ! = node≤ˢᵒ lt p (insert (y °ˢᵒ) rt)
+
+  makeTree : ∀ {F} → μᴶᴶ F P → (L Δˢᵒ) (⊥ , ⊤)
+  makeTree = foldr (λ p → insert (p °ˢᵒ)) leaf≤ˢᵒ
+
+_⁺ˢᵒ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+L ⁺ˢᵒ = μ≤ˢᵒ `Listˢᵒ L
+
+pattern [] = ⟨ inl ! ⟩
+pattern _∷_ x xs = ⟨ inr (x , ! , xs) ⟩
+infixr 6 _∷_
+
+module Merger
+  {P : Set}
+  (L : Rel P)
+  (owoto : ∀ x y -> OWOTO L (x , y))
+  where
+  merge : [ L ⁺ˢᵒ ˙→ L ⁺ˢᵒ ˙→ L ⁺ˢᵒ ]
+  merge [] = id
+  merge {l , u} (x ∷ xs) = go where
+    go : ∀ {l} {{_ : <⊥ L ⊤>ᶠ (l , # x)}} → (L ⁺ˢᵒ ˙→ L ⁺ˢᵒ) (l , u)
+    go [] = x ∷ xs
+    go (y ∷ ys) with owoto x y
+    … | inl ! = x ∷ merge xs (y ∷ ys)
+    … | inr ! = y ∷ go ys
+
+  olMon : ∀ {lu} → <⊥ L ⊤>ᶠ lu ⇒ Monoid ((L ⁺ˢᵒ) lu)
+  olMon = record { neutral = [] ; combine = merge }
+
+  mergeᴶᴶ : ∀ {F} → μᴶᴶ F P → (L ⁺ˢᵒ) (⊥ , ⊤)
+  mergeᴶᴶ = crush olMon (_∷ [])
+
+  `qLTree : JJ
+  `qLTree = (`1 `+ `P) `+ (`R `× `R)
+
+  pattern none = ⟨ inl (inl <>) ⟩
+  pattern one p = ⟨ inl (inr p) ⟩
+  pattern fork l r = ⟨ inr (l , r) ⟩
+
+  twistIn : P → μᴶᴶ `qLTree P → μᴶᴶ `qLTree P
+  twistIn p none = one p
+  twistIn p (one q) = fork (one p) (one q)
+  twistIn p (fork l r) = fork (twistIn p r) l
+
+  mergeSort : ∀ {F} → μᴶᴶ F P → (L ⁺ˢᵒ) (⊥ , ⊤)
+  mergeSort = mergeᴶᴶ ∘ foldr twistIn none
+
+sandwich : ∀ {P} {L : Rel P} → [ (L ⁺ˢᵒ) ˙^ (L ⁺ˢᵒ) ˙→ (L ⁺ˢᵒ) ]
+sandwich ([] ‘ p ‘ ys) = p ∷ ys
+sandwich (x ∷ xs ‘ p ‘ ys) = x ∷ sandwich (xs ‘ p ‘ ys)
+
+flatten' : ∀ {P} {L : Rel P} → [ (L Δˢᵒ) ˙→ (L ⁺ˢᵒ) ]
+flatten' leaf≤ˢᵒ = []
+flatten' (node≤ˢᵒ l p r) = sandwich (flatten' l ‘ p ‘ flatten' r)
+
+flatten≤ˢᵒ : ∀ {P} {L : Rel P} {F} → [ μ≤ˢᵒ F L ˙→ L ⁺ˢᵒ ]
+flatten≤ˢᵒ = flatten' ∘ tree≤ˢᵒ
+
+infixr 8 _++_
+RepL : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+RepL L (n , u) = ∀ {m} → <⊥ L ⊤>ᶠ (m , n) ⇒ (L ⁺ˢᵒ) (m , u)
+_++_ : ∀ {P} {L : Rel P} {l n u}
+  → (L ⁺ˢᵒ) (l , n)
+  → RepL L (n , u)
+  → (L ⁺ˢᵒ) (l , u)
+[] ++ ys = ys
+(x ∷ xs) ++ ys = x ∷ xs ++ ys
+
+flappˢᵒ : ∀ {P} {L : Rel P} {F} {l n u}
+  → μ≤ˢᵒ F L (l , n)
+  → RepL L (n , u)
+  → (L ⁺ˢᵒ) (l , u)
+flappˢᵒ {P} {L} {F} {u = u} t ys = go `R t ys
+  where
+  go : ∀ {l n} G
+    → ⟦ G ⟧≤ˢᵒ (μ≤ˢᵒ F L) L (l , n)
+    → RepL L (n , u)
+    → (L ⁺ˢᵒ) (l , u)
+  go `R ⟨ t ⟩ ys = go F t ys
+  go `1 ! ys = ys
+  go (S `+ T) (inl s) ys = go S s ys
+  go (S `+ T) (inr t) ys = go T t ys
+  go (S `^ T) (s ‘ p ‘ t) ys = go S s (p ∷ go T t ys)
+
+flattenˢᵒ : ∀ {P} {L : Rel P} {F} → [ μ≤ˢᵒ F L ˙→ (L ⁺ˢᵒ) ]
+flattenˢᵒ t = flappˢᵒ t []
+
+data IO (I : Set) : Set where
+  `R : I → IO I
+  `0 `1 : IO I
+  _`+_ _`^_ : (S T : IO I) → IO I
+
+⟦_⟧≤ᴵᴼ : ∀ {I P}
+  → IO I
+  → (I → Rel <⊥ P ⊤>ᵈ)
+  → Rel P
+  → Rel <⊥ P ⊤>ᵈ
+⟦ `R i ⟧≤ᴵᴼ R L = R i
+⟦ `0 ⟧≤ᴵᴼ R L = λ _ → 𝟘
+⟦ `1 ⟧≤ᴵᴼ R L = ⌈ L ⌉ʳ
+⟦ S `+ T ⟧≤ᴵᴼ R L = ⟦ S ⟧≤ᴵᴼ R L ˙+ ⟦ T ⟧≤ᴵᴼ R L
+⟦ S `^ T ⟧≤ᴵᴼ R L = ⟦ S ⟧≤ᴵᴼ R L ˙^ ⟦ T ⟧≤ᴵᴼ R L
+
+data μ≤ᴵᴼ {I P : Set} (F : I → IO I) (L : Rel P) (i : I) (lu : <⊥ P ⊤>ᵈ × <⊥ P ⊤>ᵈ) : Set where
+  ⟨_⟩ : ⟦ F i ⟧≤ᴵᴼ (μ≤ᴵᴼ F L) L lu → μ≤ᴵᴼ F L i lu
+
+pattern leaf = ⟨ inl ! ⟩
+pattern node lp p pu = ⟨ inr (lp ‘ p ‘ pu) ⟩
+
+`List : 𝟙 → IO 𝟙
+`List _ = `1 `+ (`1 `^ `R <>)
+`Tree : 𝟙 → IO 𝟙
+`Tree _ = `1 `+ (`R <> `^ `R <>)
+`Interval : 𝟙 → IO 𝟙
+`Interval _ = `1 `^ `1
+
+_Δ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+L Δ = μ≤ᴵᴼ `Tree L <>
+
+_• : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+L • = μ≤ᴵᴼ `Interval L <>
+
+_⁺ : ∀ {P} → Rel P → Rel <⊥ P ⊤>ᵈ
+L ⁺ = μ≤ᴵᴼ `List L <>
+
+open import Agda.Builtin.Nat renaming (Nat to ℕ) using (zero) using (suc)
+
+Rel≤ : Rel ℕ
+Rel≤ (x , y) = x <= y where
+  _<=_ : ℕ -> ℕ -> Set
+  zero <= y = 𝟙
+  suc x <= zero = 𝟘
+  suc x <= suc y = x <= y
+
+`Vec : ℕ → IO ℕ
+`Vec zero = `1
+`Vec (suc n) = `1 `^ `R n
+
+test-vec0 : μ≤ᴵᴼ `Vec Rel≤ 0 (⊥ , ⊤)
+test-vec0 = ⟨ ! ⟩
+
+test-vec1 : μ≤ᴵᴼ `Vec Rel≤ 1 (⊥ , ⊤)
+test-vec1 = ⟨ (99 , (! , ⟨ ! ⟩)) ⟩
+
+`Even : ℕ → IO ℕ
+`Even zero = `1
+`Even (suc zero) = `0
+`Even (suc (suc n)) = `1 `^ `1 `^ `R n
+
+test-even0 : μ≤ᴵᴼ `Even Rel≤ 0 (⊥ , ⊤)
+test-even0 = ⟨ ! ⟩
+
+test-even2 : μ≤ᴵᴼ `Even Rel≤ 2 (⊥ , ⊤)
+test-even2 = ⟨ 99 , (! , (100 , (! , ⟨ ! ⟩))) ⟩
+
+tree : ∀ {I P F} {L : Rel P} {i : I}
+  → [ μ≤ᴵᴼ F L i ˙→ L Δ ]
+tree {I} {P} {F} {L} {i} ⟨ f ⟩ = go (F i) f where
+  go : ∀ G → [ ⟦ G ⟧≤ᴵᴼ (μ≤ᴵᴼ F L) L ˙→ L Δ ]
+  go (`R i) x = tree x
+  go `1 ! = leaf
+  go `0 ()
+  go (S `+ T) (inl s) = go S s
+  go (S `+ T) (inr t) = go T t
+  go (S `^ T) (s ‘ p ‘ t) = node (go S s) p (go T t)
+
+flatten : ∀ {I P F} {L : Rel P} {i : I}
+  → [ μ≤ᴵᴼ F L i ˙→ L ⁺ ]
+flatten {I} {P} {F} {L} {i} {l , u} ⟨ t ⟩ = go (F i) t ⟨ inl ! ⟩ where
+  go : ∀ G {l n}
+    → ⟦ G ⟧≤ᴵᴼ (μ≤ᴵᴼ F L) L (l , n)
+    → (∀ {m} → <⊥ L ⊤>ᶠ (m , n) ⇒ (L ⁺) (m , u))
+    → (L ⁺) (l , u)
+  go (`R i) ⟨ t ⟩ ys = go (F i) t ys
+  go `0 () ys
+  go `1 ! ys = ys
+  go (S `+ T) (inl s) ys = go S s ys
+  go (S `+ T) (inr t) ys = go T t ys
+  go (S `^ T) (s ‘ p ‘ t) ys = go S s ⟨ (inr (p , ! , go T t ys)) ⟩
+
+`Tree23 : ℕ → IO ℕ
+`Tree23 zero = `1
+`Tree23 (suc h) = `R h `^ (`R h `+ (`R h `^ `R h))
+
+_²³ : ∀ {P} (L : Rel P) → ℕ → Rel <⊥ P ⊤>ᵈ
+L ²³ = μ≤ᴵᴼ `Tree23 L
+
+pattern no₀ = ⟨ ! ⟩
+pattern no₂ lt p rt = ⟨ p , lt , inl rt ⟩
+pattern no₃ lt p mt q rt = ⟨ p , lt , inr (q , mt , rt) ⟩
+
+pattern le = inl !
+pattern ge = inr !
+
+module 23Tree
+  {P : Set}
+  (L : Rel P)
+  (owoto : ∀ x y -> OWOTO L (x , y))
+  where
+  pattern _° p = ⟨ p , ! , ! ⟩
+
+  ins23 : ∀ h {lu}
+    → (L •) lu
+    → (L ²³) h lu
+    → (L ²³) h lu
+    + Σ P λ p
+      → (L ²³) h (Σ.fst lu , # p)
+      × (L ²³) h (# p , Σ.snd lu)
+  ins23 zero (y °) ⟨ ! ⟩ = inr (⟨ ! ⟩ ‘ y ‘ ⟨ ! ⟩)
+  ins23 (suc h) (y °) ⟨ lt ‘ p ‘ rest ⟩ with owoto y p
+  ins23 (suc h) (y °) ⟨ lt ‘ p ‘ rest ⟩ | le with ins23 h (y °) lt
+  ins23 (suc h) (y °) ⟨ lt ‘ p ‘ rest ⟩ | le | inl lt' = inl ⟨ lt' ‘ p ‘ rest ⟩
+  ins23 (suc h) (y °) (no₂ lt p rt) | le | inr (llt ‘ r ‘ lrt) = inl (no₃ llt r lrt p rt)
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | le | inr (llt ‘ r ‘ lrt) = inr (no₂ llt r lrt ‘ p ‘ no₂ mt q rt)
+  ins23 (suc h) (y °) (no₂ lt p rt) | ge with ins23 h (y °) rt
+  ins23 (suc h) (y °) (no₂ lt p rt) | ge | rt' = inl ⟨ (lt ‘ p ‘ rt' ) ⟩
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge with owoto y q
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | le with ins23 h (y °) mt
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | le | inl mt' = inl (no₃ lt p mt' q rt)
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | le | inr (mlt ‘ r ‘ mrt) = inr (no₂ lt p mlt ‘ r ‘ no₂ mrt q rt)
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | ge with ins23 h (y °) rt
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | ge | inl rt' = inl (no₃ lt p mt q rt')
+  ins23 (suc h) (y °) (no₃ lt p mt q rt) | ge | ge | inr (rlt ‘ r ‘ rrt) = inr (no₂ lt p mt ‘ q ‘ no₂ rlt r rrt)
+
+  Tree23 = Σ ℕ λ h → (L ²³) h (⊥ , ⊤)
+
+  insert : P → Tree23 → Tree23
+  insert p (h , t) with ins23 h (p °) t
+  … | inl t' = h , t'
+  … | inr (lt ‘ r ‘ rt) = suc h , no₂ lt r rt
+
+  sort : ∀ {F} → μᴶᴶ F P → (L ⁺) (⊥ , ⊤)
+  sort = flatten ∘ Σ.snd ∘ foldr insert (0 , no₀)
+
+  data _≡_ {X : Set} (x : X) : X → Set where
+    ⟨⟩ : x ≡ x
+  infix 6 _≡_
+
+  module Delete23
+    (trans : ∀ {x} y {z} → L (x , y) ⇒ L (y , z) ⇒ ⌈ L (x , z) ⌉ᵖ)
+    (eq? : (x y : P) → x ≡ y + (x ≡ y → 𝟘))
+    where
+
+    pattern via p = p , ! , !
+
+    trans⊥⊤ : [ (⌈ L ⌉ʳ ˙^ ⌈ L ⌉ʳ) ˙→ ⌈ L ⌉ʳ ]
+    trans⊥⊤ {_ , ⊤} _ = !
+    trans⊥⊤ {⊥ , ⊥} _ = !
+    trans⊥⊤ {⊥ , # u} _ = !
+    trans⊥⊤ {⊤ , _} (via _) = magic
+    trans⊥⊤ {# l , # u} (via p) = trans p ∴ !
+    trans⊥⊤ {# l , ⊥} (via _) = magic
+
+    Short²³ : ℕ → Rel <⊥ P ⊤>ᵈ
+    Short²³ zero lu = 𝟘
+    Short²³ (suc h) lu = (L ²³) h lu
+
+    Del²³ : ℕ → Rel <⊥ P ⊤>ᵈ
+    Del²³ h lu = Short²³ h lu + (L ²³) h lu
+
+    Re2 : ℕ → Rel <⊥ P ⊤>ᵈ
+    Re2 h = Short²³ (suc h) ˙+ ((L ²³) h ˙^ (L ²³) h)
+
+    d2t : ∀ {h} → [ (Del²³ h ˙^ (L ²³) h) ˙→ Re2 h ]
+    d2t {h} (inr lp ‘ p ‘ pu) = inr (lp ‘ p ‘ pu)
+    d2t {zero} (inl () ‘ p ‘ pu)
+    d2t {suc h} (inl lp ‘ p ‘ no₂ pq q qu) = inl (no₃ lp p pq q qu)
+    d2t {suc h} (inl lp ‘ p ‘ no₃ pq q qr r ru) = inr (no₂ lp p pq ‘ q ‘ no₂ qr r ru)
+
+    t2d : ∀ {h} → [ ((L ²³) h ˙^ Del²³ h) ˙→ Re2 h ]
+    t2d {h} (lp ‘ p ‘ inr pu) = inr (lp ‘ p ‘ pu)
+    t2d {zero} (lp ‘ p ‘ inl ())
+    t2d {suc h} (no₂ ln n np ‘ p ‘ inl pu) = inl (no₃ ln n np p pu)
+    t2d {suc h} (no₃ lm m mn n np ‘ p ‘ inl pu) = inr (no₂ lm m mn ‘ n ‘ no₂ np p pu)
+
+    rd : ∀ {h} → [ Re2 h ˙→ Del²³ (suc h) ]
+    rd (inl s) = inl s
+    rd (inr (lp ‘ p ‘ pu)) = inr (no₂ lp p pu)
+
+    r3t : ∀ {h} → [ (Re2 h ˙^ (L ²³) h) ˙→ Del²³ (suc h) ]
+    r3t (inr (lm ‘ m ‘ mp) ‘ p ‘ pu) = inr (no₃ lm m mp p pu)
+    r3t (inl lp ‘ p ‘ pu) = inr (no₂ lp p pu)
+
+    t3r : ∀ {h} → [ ((L ²³) h ˙^ Re2 h) ˙→ Del²³ (suc h) ]
+    t3r (lp ‘ p ‘ inr (pq ‘ q ‘ qu)) = inr (no₃ lp p pq q qu)
+    t3r (lp ‘ p ‘ inl pu) = inr (no₂ lp p pu)
+
+    pattern _Δ/_ lr r = r , lr , !
+
+    extr : ∀ {h} → [ (L ²³) (suc h) ˙→ (Del²³ (suc h) ˙^ ⌈ L ⌉ʳ) ]
+    extr {zero} (no₂ lr r no₀) = inl lr Δ/ r
+    extr {zero} (no₃ lp p pr r no₀) = inr (no₂ lp p pr) Δ/ r
+    extr {suc h} (no₂ lp p pu) with extr pu
+    … | pr Δ/ r = rd (t2d (lp ‘ p ‘ pr)) Δ/ r
+    extr {suc h} (no₃ lp p pq q qu) with extr qu
+    … | qr Δ/ r = t3r (lp ‘ p ‘ t2d (pq ‘ q ‘ qr)) Δ/ r
+
+    delp : ∀ {h} → [ ((L ²³) h ˙^ (L ²³) h) ˙→ Re2 h ]
+    delp {zero} {lu} (no₀ ‘ p ‘ no₀) = trans⊥⊤ {lu} (via p) ∴ inl no₀
+    delp {suc h} (lp ‘ p ‘ pu) with extr lp
+    … | lr Δ/ r = d2t (lr ‘ r ‘ weak pu) where
+      weak : ∀ {h u} → (L ²³) h (# p , u) → (L ²³) h (# r , u)
+      weak {zero} {u} no₀ = trans⊥⊤ {# r , u} (via p) ∴ no₀
+      weak {suc h} ⟨ pq ‘ q ‘ qu ⟩ = ⟨ (weak pq ‘ q ‘ qu) ⟩
+
+    del²³ : ∀ {h} → [ (L •) ˙→ (L ²³) h ˙→ Del²³ h ]
+    del²³ {zero} _ no₀ = inr no₀
+    del²³ {suc h} (y °) ⟨ lp ‘ p ‘ pu ⟩ with eq? y p
+    del²³ {suc h} (.p °) (no₂ lp p pu) | inl ⟨⟩ = rd (delp (lp ‘ p ‘ pu))
+    del²³ {suc h} (.p °) (no₃ lp p pq q qu) | inl ⟨⟩ = r3t (delp (lp ‘ p ‘ pq) ‘ q ‘ qu)
+    del²³ {suc h} (y °) ⟨ lp ‘ p ‘ pu ⟩ | inr _ with owoto y p
+    del²³ {suc h} (y °) (no₂ lp p pu) | inr _ | le = rd (d2t (del²³ (y °) lp ‘ p ‘ pu))
+    del²³ {suc h} (y °) (no₂ lp p pu) | inr _ | ge = rd (t2d (lp ‘ p ‘ del²³ (y °) pu))
+    del²³ {suc h} (y °) (no₃ lp p pq q qu) | inr _ | le = r3t (d2t (del²³ (y °) lp ‘ p ‘ pq) ‘ q ‘ qu)
+    del²³ {suc h} (y °) (no₃ lp p pq q qu) | inr _ | ge with eq? y q
+    del²³ {suc h} (.q °) (no₃ lp p pq q qu) | inr _ | ge | inl ⟨⟩ = t3r (lp ‘ p ‘ delp (pq ‘ q ‘ qu))
+    del²³ {suc h} (y °) (no₃ lp p pq q qu) | inr _ | ge | inr _ with owoto y q
+    del²³ {suc h} (y °) (no₃ lp p pq q qu) | inr _ | ge | inr _ | le = r3t (t2d (lp ‘ p ‘ del²³ (y °) pq) ‘ q ‘ qu)
+    del²³ {suc h} (y °) (no₃ lp p pq q qu) | inr _ | ge | inr _ | ge = t3r (lp ‘ p ‘ t2d (pq ‘ q ‘ del²³ (y °) qu))
